@@ -2,6 +2,17 @@
 -- Andes Mobility: RLS, Views, Triggers, RPC, PostGIS
 -- =============================================================================
 
+-- Asegurar tipo enum (creado en initial_schema)
+do $$ begin
+  create type user_role as enum (
+    'usuario',
+    'conductor',
+    'cooperativa_admin',
+    'municipal_admin'
+  );
+exception when duplicate_object then null;
+end $$;
+
 -- 4. ROW LEVEL SECURITY (RLS)
 -- =============================================================================
 
@@ -40,28 +51,34 @@ returns uuid as $$
 $$ language sql stable security definer;
 
 -- 4.4 Policies: profiles
+drop policy if exists "Usuarios ven su propio perfil" on profiles;
 create policy "Usuarios ven su propio perfil"
   on profiles for select
   using (id = auth.uid() or auth_user_role() in ('cooperativa_admin', 'municipal_admin'));
 
+drop policy if exists "Usuarios actualizan su propio perfil" on profiles;
 create policy "Usuarios actualizan su propio perfil"
   on profiles for update
   using (id = auth.uid());
 
+drop policy if exists "Admin municipal gestiona todos los perfiles" on profiles;
 create policy "Admin municipal gestiona todos los perfiles"
   on profiles for all
   using (auth_user_role() = 'municipal_admin');
 
 -- 4.5 Policies: cooperativas
+drop policy if exists "Lectura pública de cooperativas" on cooperativas;
 create policy "Lectura pública de cooperativas"
   on cooperativas for select
   using (true);
 
+drop policy if exists "Admin municipal gestiona cooperativas" on cooperativas;
 create policy "Admin municipal gestiona cooperativas"
   on cooperativas for all
   using (auth_user_role() = 'municipal_admin');
 
 -- 4.6 Policies: drivers
+drop policy if exists "Admin cooperativa ve sus conductores" on drivers;
 create policy "Admin cooperativa ve sus conductores"
   on drivers for select
   using (
@@ -69,46 +86,56 @@ create policy "Admin cooperativa ve sus conductores"
     or auth_user_role() = 'municipal_admin'
   );
 
+drop policy if exists "Admin cooperativa gestiona sus conductores" on drivers;
 create policy "Admin cooperativa gestiona sus conductores"
   on drivers for all
   using (cooperativa_id = auth_user_cooperativa());
 
 -- 4.7 Policies: routes
+drop policy if exists "Rutas visibles para autenticados" on routes;
 create policy "Rutas visibles para autenticados"
   on routes for select
   using (auth.role() = 'authenticated');
 
+drop policy if exists "Admin cooperativa gestiona sus rutas" on routes;
 create policy "Admin cooperativa gestiona sus rutas"
   on routes for all
   using (cooperativa_id = auth_user_cooperativa());
 
 -- 4.8 Policies: buses
+drop policy if exists "Buses visibles para autenticados" on buses;
 create policy "Buses visibles para autenticados"
   on buses for select
   using (auth.role() = 'authenticated');
 
+drop policy if exists "Admin cooperativa gestiona sus buses" on buses;
 create policy "Admin cooperativa gestiona sus buses"
   on buses for all
   using (cooperativa_id = auth_user_cooperativa());
 
 -- 4.9 Policies: bus_live_position (Realtime)
+drop policy if exists "Posición de buses visible para autenticados" on bus_live_position;
 create policy "Posición de buses visible para autenticados"
   on bus_live_position for select
   using (auth.role() = 'authenticated');
 
-create policy "Servicio puente actualiza posición (service_role)"
+drop policy if exists "Servicio puente inserta posición (service_role)" on bus_live_position;
+create policy "Servicio puente inserta posición (service_role)"
   on bus_live_position for insert
   with check (true);
 
+drop policy if exists "Servicio puente actualiza posición (service_role)" on bus_live_position;
 create policy "Servicio puente actualiza posición (service_role)"
   on bus_live_position for update
   using (true);
 
 -- 4.10 Policies: stops
+drop policy if exists "Paradas visibles para autenticados" on stops;
 create policy "Paradas visibles para autenticados"
   on stops for select
   using (auth.role() = 'authenticated');
 
+drop policy if exists "Admin cooperativa gestiona paradas de sus rutas" on stops;
 create policy "Admin cooperativa gestiona paradas de sus rutas"
   on stops for all
   using (
@@ -120,15 +147,18 @@ create policy "Admin cooperativa gestiona paradas de sus rutas"
   );
 
 -- 4.11 Policies: system_alerts
+drop policy if exists "Alertas visibles para autenticados" on system_alerts;
 create policy "Alertas visibles para autenticados"
   on system_alerts for select
   using (auth.role() = 'authenticated');
 
+drop policy if exists "Admin municipal gestiona alertas" on system_alerts;
 create policy "Admin municipal gestiona alertas"
   on system_alerts for all
   using (auth_user_role() = 'municipal_admin');
 
 -- 4.12 Policies: chat
+drop policy if exists "Chat visible para participantes" on chat_messages;
 create policy "Chat visible para participantes"
   on chat_messages for select
   using (
@@ -143,16 +173,19 @@ create policy "Chat visible para participantes"
     )
   );
 
+drop policy if exists "Participantes envían mensajes" on chat_messages;
 create policy "Participantes envían mensajes"
   on chat_messages for insert
   with check (sender_id = auth.uid());
 
 -- 4.13 Policies: premium
+drop policy if exists "Usuario ve su suscripción" on premium_subscriptions;
 create policy "Usuario ve su suscripción"
   on premium_subscriptions for select
   using (user_id = auth.uid() or auth_user_role() = 'municipal_admin');
 
 -- 4.14 Policies: trips
+drop policy if exists "Viajes visibles para participantes y admins" on trips;
 create policy "Viajes visibles para participantes y admins"
   on trips for select
   using (
@@ -161,15 +194,18 @@ create policy "Viajes visibles para participantes y admins"
   );
 
 -- 4.15 Policies: device_tokens
+drop policy if exists "Usuario gestiona su token" on device_tokens;
 create policy "Usuario gestiona su token"
   on device_tokens for all
   using (user_id = auth.uid());
 
 -- 4.16 Policies: user_stop_presence
+drop policy if exists "Usuario registra su presencia" on user_stop_presence;
 create policy "Usuario registra su presencia"
   on user_stop_presence for insert
   with check (user_id = auth.uid());
 
+drop policy if exists "Admins ven presencia de usuarios" on user_stop_presence;
 create policy "Admins ven presencia de usuarios"
   on user_stop_presence for select
   using (auth_user_role() in ('cooperativa_admin', 'municipal_admin'));
@@ -235,11 +271,12 @@ returns table (
     r.name as route_name,
     count(t.id) as total_trips,
     count(t.id) filter (where t.status = 'completed') as completed_trips,
-    coalesce(avg(th.occupancy_pct), 0) as avg_occupancy,
+    coalesce(avg(case when b.capacity > 0 then (th.passenger_count::double precision / b.capacity) * 100 end), 0) as avg_occupancy,
     coalesce(avg(th.speed_kmh), 0) as avg_speed,
     coalesce(sum(th.passenger_count), 0) as total_passengers
   from routes r
   left join trips t on t.route_id = r.id
+  left join buses b on b.id = t.bus_id
   left join bus_telemetry_history th on th.bus_id = t.bus_id
     and th.recorded_at between t.started_at and coalesce(t.ended_at, now())
   where r.cooperativa_id = coop_id
@@ -387,10 +424,12 @@ begin
 end;
 $$ language plpgsql;
 
+drop trigger if exists trg_profiles_updated_at on profiles;
 create trigger trg_profiles_updated_at
   before update on profiles
   for each row execute function update_updated_at_column();
 
+drop trigger if exists trg_routes_updated_at on routes;
 create trigger trg_routes_updated_at
   before update on routes
   for each row execute function update_updated_at_column();
@@ -404,7 +443,7 @@ begin
     new.id,
     coalesce(
       (new.raw_user_meta_data->>'role')::user_role,
-      'usuario'::user_role
+    'usuario'::user_role
     ),
     coalesce(
       new.raw_user_meta_data->>'full_name',
@@ -427,8 +466,8 @@ create trigger on_auth_user_created
 -- =============================================================================
 
 -- Habilitar Realtime para tablas de streaming
-alter publication supabase_realtime add table bus_live_position;
-alter publication supabase_realtime add table bus_stop_events;
-alter publication supabase_realtime add table system_alerts;
-alter publication supabase_realtime add table chat_messages;
-alter publication supabase_realtime add table trips;
+do $$ begin alter publication supabase_realtime add table bus_live_position; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table bus_stop_events; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table system_alerts; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table chat_messages; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table trips; exception when duplicate_object then null; end $$;

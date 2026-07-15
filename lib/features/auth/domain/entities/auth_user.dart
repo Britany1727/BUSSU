@@ -20,6 +20,9 @@ class AppUser {
   /// Fingerprint del dispositivo vinculado.
   final String? deviceId;
 
+  /// ID de cooperativa asociada (si el usuario es cooperativa_admin o conductor).
+  final String? cooperativaId;
+
   /// Fecha de creación del perfil.
   final DateTime createdAt;
 
@@ -30,6 +33,7 @@ class AppUser {
     required this.role,
     this.isPremium = false,
     this.deviceId,
+    this.cooperativaId,
     required this.createdAt,
   });
 
@@ -40,6 +44,7 @@ class AppUser {
     UserRole? role,
     bool? isPremium,
     String? deviceId,
+    String? cooperativaId,
     DateTime? createdAt,
   }) {
     return AppUser(
@@ -49,6 +54,7 @@ class AppUser {
       role: role ?? this.role,
       isPremium: isPremium ?? this.isPremium,
       deviceId: deviceId ?? this.deviceId,
+      cooperativaId: cooperativaId ?? this.cooperativaId,
       createdAt: createdAt ?? this.createdAt,
     );
   }

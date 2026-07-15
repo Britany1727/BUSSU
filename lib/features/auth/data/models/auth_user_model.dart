@@ -11,10 +11,10 @@ class AppUserModel extends AppUser {
     required super.role,
     super.isPremium = false,
     super.deviceId,
+    super.cooperativaId,
     required super.createdAt,
   });
 
-  /// Crea un [AppUserModel] desde el mapa retornado por Supabase.
   factory AppUserModel.fromJson(Map<String, dynamic> json) {
     return AppUserModel(
       id: json['id'] as String,
@@ -23,13 +23,13 @@ class AppUserModel extends AppUser {
       role: UserRole.fromString(json['role'] as String),
       isPremium: json['is_premium'] as bool? ?? false,
       deviceId: json['device_id'] as String?,
+      cooperativaId: json['cooperativa_id'] as String?,
       createdAt: DateTime.parse(
         json['created_at'] as String? ?? DateTime.now().toIso8601String(),
       ),
     );
   }
 
-  /// Convierte a mapa para insertar/actualizar en Supabase.
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -37,10 +37,10 @@ class AppUserModel extends AppUser {
       'role': role.toDatabaseValue,
       'is_premium': isPremium,
       'device_id': deviceId,
+      'cooperativa_id': cooperativaId,
     };
   }
 
-  /// Convierte a la entidad de dominio.
   AppUser toEntity() => AppUser(
         id: id,
         email: email,
@@ -48,6 +48,7 @@ class AppUserModel extends AppUser {
         role: role,
         isPremium: isPremium,
         deviceId: deviceId,
+        cooperativaId: cooperativaId,
         createdAt: createdAt,
       );
 }

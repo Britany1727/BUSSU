@@ -38,12 +38,17 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       if (next.errorMessage != null &&
           previous?.errorMessage != next.errorMessage) {
+        final isEmailPending = next.errorMessage!.contains('correo');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(next.errorMessage!),
-            backgroundColor: AppTheme.error,
+            backgroundColor: isEmailPending ? const Color(0xFF001B44) : AppTheme.error,
+            duration: const Duration(seconds: 5),
           ),
         );
+        if (isEmailPending) {
+          Navigator.of(context).pop();
+        }
       }
     });
 

@@ -45,7 +45,7 @@ returns table (
   ),
   progress as (
     select bp.lat, bp.lng, bp.speed_kmh,
-      st_linelocatepoint(rg.polyline, st_makepoint(bp.lng, bp.lat)::geography) * rg.route_length as progress_meters,
+      st_linelocatepoint(rg.polyline::geometry, st_makepoint(bp.lng, bp.lat)) * rg.route_length as progress_meters,
       rg.route_length as route_length_meters
     from bus_pos bp, route_geom rg
   ),

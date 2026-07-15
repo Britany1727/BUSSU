@@ -1,14 +1,9 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
-import '../../../../core/services/location_service.dart';
 import '../../../../shared/presentation/providers/location_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
-
-final tripActiveProvider = StateProvider<bool>((ref) => false);
-final driverLocationProvider = StateProvider<LatLng?>((ref) => null);
 
 class DriverDashboardPage extends ConsumerStatefulWidget {
   const DriverDashboardPage({super.key});
@@ -18,13 +13,6 @@ class DriverDashboardPage extends ConsumerStatefulWidget {
 
 class _DriverDashboardPageState extends ConsumerState<DriverDashboardPage> {
   int _passengerCount = 0;
-  StreamSubscription<LocationData>? _locationSub;
-
-  @override
-  void dispose() {
-    _locationSub?.cancel();
-    super.dispose();
-  }
 
   void _startTrip() async {
     final service = ref.read(locationServiceProvider);
@@ -45,28 +33,12 @@ class _DriverDashboardPageState extends ConsumerState<DriverDashboardPage> {
         ref.read(driverLocationProvider.notifier).state = latLng;
         ref.read(tripActiveProvider.notifier).state = true;
         ref.read(startTripUseCaseProvider).execute(driverId: 'current-driver', busId: 'bus-123', routeId: 'route-a');
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Viaje iniciado — ubicación en tiempo real activada'), backgroundColor: Color(0xFF001B44)));
-        _startPublishingLocation(service);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Viaje iniciado — presiona "Iniciar ruta" para activar GPS'), backgroundColor: Color(0xFF001B44)));
       },
     );
   }
 
-  void _startPublishingLocation(LocationService service) {
-    _locationSub?.cancel();
-    _locationSub = service.onLocationChanged.listen((loc) {
-      if (!mounted) return;
-      final latLng = LatLng(loc.latitude, loc.longitude);
-      ref.read(driverLocationProvider.notifier).state = latLng;
-      ref.read(publishTelemetryUseCaseProvider).execute(
-        busId: 'bus-123', lat: loc.latitude, lng: loc.longitude,
-        speedKmh: loc.speed ?? 0, heading: loc.heading ?? 0,
-      );
-    });
-  }
-
   void _endTrip() {
-    _locationSub?.cancel();
-    _locationSub = null;
     ref.read(tripActiveProvider.notifier).state = false;
     ref.read(driverLocationProvider.notifier).state = null;
     ref.read(endTripUseCaseProvider).execute('current-trip');

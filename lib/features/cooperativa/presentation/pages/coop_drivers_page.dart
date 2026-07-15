@@ -60,15 +60,25 @@ class _CoopDriversPageState extends ConsumerState<CoopDriversPage> {
       ])),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar', style: TextStyle(color: Color(0xFF434750)))),
-        ElevatedButton(onPressed: () {
+        ElevatedButton(onPressed: () async {
           final fn = '${_nombres.text.trim()} ${_apellidos.text.trim()}';
-          if (_editId == null) {
-            ref.read(authNotifierProvider.notifier).register(email: _correo.text.trim(), password: _password.text, confirmPassword: _password.text, fullName: fn, role: UserRole.conductor);
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Conductor actualizado'), backgroundColor: Color(0xFF001B44)));
+          if (_correo.text.trim().isEmpty || _password.text.isEmpty || fn.trim().isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nombre, correo y contraseña son requeridos'), backgroundColor: Color(0xFFBA1A1A)));
+            return;
           }
+          final coopId = ref.read(currentCoopIdProvider);
+          final repo = ref.read(fleetRepositoryProvider);
+          await repo.createDriver(
+            cooperativaId: coopId,
+            email: _correo.text.trim(),
+            password: _password.text,
+            fullName: fn,
+            licenseNumber: _licencia.text.trim().isNotEmpty ? _licencia.text.trim() : null,
+          );
+          if (!mounted) return;
           Navigator.pop(context);
-          ref.invalidate(driversProvider(ref.read(currentCoopIdProvider)));
+          ref.invalidate(driversProvider(coopId));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Conductor registrado correctamente'), backgroundColor: Color(0xFF001B44)));
         }, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF001B44), foregroundColor: Colors.white), child: Text(_editId != null ? 'Guardar' : 'Registrar')),
       ],
     ));

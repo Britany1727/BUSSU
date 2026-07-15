@@ -150,6 +150,15 @@ class MockFleetRepository implements FleetRepository {
       const Right(null);
 
   @override
+  Future<Either<Failure, void>> createDriver({
+          required String cooperativaId,
+          required String email,
+          required String password,
+          required String fullName,
+          String? licenseNumber}) async =>
+      const Right(null);
+
+  @override
   Future<Either<Failure, List<BusEntity>>> getBuses(
           String cooperativaId) async =>
       const Right([]);

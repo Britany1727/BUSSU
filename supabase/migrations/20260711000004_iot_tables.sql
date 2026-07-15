@@ -7,7 +7,7 @@ create table if not exists device_registry (
   device_id text primary key,
   bus_id uuid references buses(id) on delete cascade,
   firmware_version text,
-  hardware_model text not null default 'ESP32',
+  hardware_model text not null default 'ESP32-C3',
   first_seen timestamptz not null default now(),
   last_seen timestamptz not null default now(),
   status text not null default 'online'
@@ -74,8 +74,8 @@ create table if not exists bridge_health (
 );
 
 -- Realtime para monitoreo
-alter publication supabase_realtime add table bridge_health;
-alter publication supabase_realtime add table device_registry;
+do $$ begin alter publication supabase_realtime add table bridge_health; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table device_registry; exception when duplicate_object then null; end $$;
 
 -- RLS para IoT tables
 alter table device_registry enable row level security;
@@ -85,18 +85,22 @@ alter table telemetry_offline_queue enable row level security;
 alter table bridge_health enable row level security;
 
 -- Solo admins y service_role acceden a datos IoT
+drop policy if exists "Admins ven device registry" on device_registry;
 create policy "Admins ven device registry"
   on device_registry for select
   using (auth_user_role() in ('cooperativa_admin', 'municipal_admin'));
 
+drop policy if exists "Service role gestiona device registry" on device_registry;
 create policy "Service role gestiona device registry"
   on device_registry for all
   using (true);
 
+drop policy if exists "Admins ven bridge health" on bridge_health;
 create policy "Admins ven bridge health"
   on bridge_health for select
   using (auth_user_role() in ('cooperativa_admin', 'municipal_admin'));
 
+drop policy if exists "Admins ven bridge logs" on bridge_logs;
 create policy "Admins ven bridge logs"
   on bridge_logs for select
   using (auth_user_role() = 'municipal_admin');

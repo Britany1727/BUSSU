@@ -42,7 +42,7 @@ returns table (
       bp.lat,
       bp.lng,
       bp.speed_kmh,
-      st_linelocatepoint(rg.polyline, st_makepoint(bp.lng, bp.lat)::geography)
+      st_linelocatepoint(rg.polyline::geometry, st_makepoint(bp.lng, bp.lat))
         * rg.route_length as progress_meters,
       rg.route_length as route_length_meters
     from bus_pos bp, route_geom rg
@@ -136,7 +136,7 @@ begin
     st_y(blp.location::geometry),
     st_x(blp.location::geometry),
     coalesce(blp.speed_kmh, 0),
-    st_linelocatepoint(r.polyline, blp.location) * st_length(r.polyline)
+    st_linelocatepoint(r.polyline::geometry, blp.location::geometry) * st_length(r.polyline)
   into bus_lat_val, bus_lng_val, bus_speed, bus_progress
   from bus_live_position blp
   join routes r on r.id = route_id_param
@@ -200,7 +200,7 @@ begin
     end as occupancy_level
   from stops s
   join routes r on r.id = s.route_id
-  left join bus_live_position blp on true
+  left join bus_live_position blp on blp.bus_id = bus_id_param
   where s.route_id = route_id_param
     and s.distance_along_route > bus_progress
   order by s.order_index;

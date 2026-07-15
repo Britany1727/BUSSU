@@ -35,15 +35,22 @@ class AuthRepositoryImpl implements AuthRepository {
     required String fullName,
     required UserRole role,
   }) async {
-    return ResultMapper.fromAsync(() async {
-      final model = await _remoteDataSource.signUp(
+    try {
+      final result = await _remoteDataSource.signUp(
         email: email,
         password: password,
         fullName: fullName,
         role: role.toDatabaseValue,
       );
-      return model.toEntity();
-    });
+
+      if (result.emailConfirmationPending) {
+        return const Left(EmailConfirmationPendingFailure());
+      }
+
+      return Right(result.user!.toEntity());
+    } catch (e) {
+      return Left(ResultMapper.mapExceptionToFailure(e, StackTrace.current));
+    }
   }
 
   @override

@@ -222,4 +222,21 @@ class FleetRepositoryImpl implements FleetRepository {
       () => _remote.fetchTripHistory(cooperativaId, limit: limit),
     );
   }
+
+  @override
+  Future<Either<Failure, void>> createDriver({
+    required String cooperativaId,
+    required String email,
+    required String password,
+    required String fullName,
+    String? licenseNumber,
+  }) async {
+    return ResultMapper.fromAsync(() => _remote.createDriver(
+      cooperativaId: cooperativaId,
+      email: email,
+      password: password,
+      fullName: fullName,
+      licenseNumber: licenseNumber,
+    ));
+  }
 }

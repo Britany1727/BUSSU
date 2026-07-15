@@ -45,16 +45,22 @@ class _CooperativasCrudPageState extends ConsumerState<CooperativasCrudPage> {
       ])),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-        ElevatedButton(onPressed: () {
+        ElevatedButton(onPressed: () async {
           final fn = _nombre.text.trim();
-          if (fn.isEmpty || _correo.text.trim().isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nombre y correo son requeridos'), backgroundColor: Color(0xFFBA1A1A)));
+          if (fn.isEmpty || _correo.text.trim().isEmpty || _ruc.text.trim().isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nombre, RUC y correo son requeridos'), backgroundColor: Color(0xFFBA1A1A)));
             return;
           }
-          ref.read(authNotifierProvider.notifier).register(email: _correo.text.trim(), password: _password.text.trim(), confirmPassword: _password.text.trim(), fullName: fn, role: UserRole.cooperativaAdmin);
+          final repo = ref.read(networkMonitorRepositoryProvider);
+          await repo.createCooperativa({
+            'name': fn,
+            'ruc': _ruc.text.trim(),
+            'status': _estado ? 'active' : 'inactive',
+          });
+          if (!mounted) return;
           Navigator.pop(context);
           ref.invalidate(cooperativasStatusProvider);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cooperativa registrada: profiles + auth creados'), backgroundColor: Color(0xFF001B44)));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cooperativa creada correctamente'), backgroundColor: Color(0xFF001B44)));
         }, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF001B44), foregroundColor: Colors.white), child: const Text('Registrar')),
       ],
     ));

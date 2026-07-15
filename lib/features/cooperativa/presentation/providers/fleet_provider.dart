@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/domain/entities/bus_entity.dart';
 import '../../../../shared/domain/entities/route_entity.dart';
 import '../../../../shared/domain/entities/stop_entity.dart';
@@ -12,7 +13,10 @@ import '../../domain/usecases/get_fleet_health_usecase.dart';
 import '../../domain/usecases/get_route_performance_usecase.dart';
 
 /// ID de cooperativa actual (se obtiene del perfil del usuario autenticado).
-final currentCoopIdProvider = StateProvider<String>((ref) => 'c0000000-0000-0000-0000-000000000001');
+final currentCoopIdProvider = Provider<String>((ref) {
+  final user = ref.watch(currentUserProvider);
+  return user?.cooperativaId ?? '';
+});
 
 final fleetRepositoryProvider = Provider<FleetRepository>((_) {
   throw UnimplementedError('Registra en injection_container');

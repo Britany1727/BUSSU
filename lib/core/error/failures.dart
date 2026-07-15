@@ -53,3 +53,7 @@ class PaymentFailure extends Failure {
 class UnknownFailure extends Failure {
   const UnknownFailure([super.message = 'Error desconocido']);
 }
+
+class EmailConfirmationPendingFailure extends Failure {
+  const EmailConfirmationPendingFailure([super.message = 'Confirma tu correo electrónico para continuar']);
+}

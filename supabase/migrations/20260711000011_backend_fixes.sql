@@ -38,7 +38,7 @@ returns table (
   ),
   progress as (
     select bp.lat, bp.lng, bp.speed_kmh,
-      st_linelocatepoint(rg.polyline, st_makepoint(bp.lng, bp.lat)::geography) * rg.route_length as progress_meters,
+      st_linelocatepoint(rg.polyline::geometry, st_makepoint(bp.lng, bp.lat)) * rg.route_length as progress_meters,
       rg.route_length as route_length_meters
     from bus_pos bp, route_geom rg
   ),
@@ -89,8 +89,18 @@ $$;
 -- Fix 10: pg_cron job para refrescar fleet_health_mv cada 30 segundos
 -- =============================================================================
 -- Requiere: create extension if not exists pg_cron;
-select cron.schedule(
-  'refresh-fleet-health',
-  '30 seconds',
-  'refresh materialized view concurrently fleet_health_mv'
-) where exists (select 1 from pg_extension where extname = 'pg_cron');
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    begin
+      perform cron.unschedule('refresh-fleet-health');
+    exception when others then null;
+    end;
+    perform cron.schedule(
+      'refresh-fleet-health',
+      '30 seconds',
+      'refresh materialized view concurrently fleet_health_mv'
+    );
+  end if;
+end
+$$;

@@ -10,12 +10,15 @@ create extension if not exists postgis;
 
 -- 2. TIPOS ENUM
 -- =============================================================================
-create type user_role as enum (
-  'usuario',
-  'conductor',
-  'cooperativa_admin',
-  'municipal_admin'
-);
+do $$ begin
+  create type user_role as enum (
+    'usuario',
+    'conductor',
+    'cooperativa_admin',
+    'municipal_admin'
+  );
+exception when duplicate_object then null;
+end $$;
 
 -- 3. TABLAS PRINCIPALES
 -- =============================================================================
@@ -80,9 +83,12 @@ create table if not exists buses (
 );
 
 -- FK de drivers.assigned_bus_id
-alter table drivers
-  add constraint fk_drivers_assigned_bus
-  foreign key (assigned_bus_id) references buses(id) on delete set null;
+do $$ begin
+  alter table drivers
+    add constraint fk_drivers_assigned_bus
+    foreign key (assigned_bus_id) references buses(id) on delete set null;
+exception when duplicate_object then null;
+end $$;
 
 -- 3.6 Paradas (con PostGIS)
 create table if not exists stops (
@@ -109,14 +115,33 @@ create table if not exists bus_live_position (
   speed_kmh double precision,
   heading double precision,
   passenger_count int not null default 0,
-  occupancy_pct double precision generated always as (
-    least(100, round(
-      coalesce(passenger_count, 0)::double precision /
-      nullif((select capacity from buses where buses.id = bus_id), 0) * 100, 1
-    ))
-  ) stored,
+  occupancy_pct double precision default 0,
   updated_at timestamptz not null default now()
 );
+
+-- Trigger para calcular occupancy_pct automáticamente
+create or replace function calc_occupancy_pct()
+returns trigger as $$
+declare
+  bus_capacity int;
+begin
+  select capacity into bus_capacity from buses where buses.id = new.bus_id;
+  if bus_capacity is null or bus_capacity = 0 then
+    new.occupancy_pct := 0;
+  else
+    new.occupancy_pct := least(100, round(
+      (new.passenger_count::double precision / bus_capacity * 100)::numeric, 1
+    ));
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_calc_occupancy on bus_live_position;
+create trigger trg_calc_occupancy
+  before insert or update of passenger_count
+  on bus_live_position
+  for each row execute function calc_occupancy_pct();
 
 -- 3.8 Historial de telemetría
 create table if not exists bus_telemetry_history (

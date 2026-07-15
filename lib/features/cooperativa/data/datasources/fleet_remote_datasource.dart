@@ -38,6 +38,15 @@ abstract class FleetRemoteDataSource {
     String cooperativaId, {
     int limit = 50,
   });
+
+  // Driver creation
+  Future<void> createDriver({
+    required String cooperativaId,
+    required String email,
+    required String password,
+    required String fullName,
+    String? licenseNumber,
+  });
 }
 
 class FleetRemoteDataSourceImpl implements FleetRemoteDataSource {
@@ -211,5 +220,34 @@ class FleetRemoteDataSourceImpl implements FleetRemoteDataSource {
         .limit(limit);
 
     return (response as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  @override
+  Future<void> createDriver({
+    required String cooperativaId,
+    required String email,
+    required String password,
+    required String fullName,
+    String? licenseNumber,
+  }) async {
+    final authResult = await _client.auth.signUp(
+      email: email,
+      password: password,
+      data: {'full_name': fullName, 'role': 'conductor'},
+      emailRedirectTo: 'io.verve.bussu://login-callback',
+    );
+
+    if (authResult.user != null) {
+      await _client.from('drivers').insert({
+        'id': authResult.user!.id,
+        'cooperativa_id': cooperativaId,
+        'license_number': licenseNumber,
+        'is_active': true,
+      });
+
+      await _client.from('profiles').update({
+        'cooperativa_id': cooperativaId,
+      }).eq('id', authResult.user!.id);
+    }
   }
 }

@@ -53,4 +53,13 @@ abstract class FleetRepository {
     String cooperativaId, {
     int limit = 50,
   });
+
+  // ---- Driver creation ----
+  Future<Either<Failure, void>> createDriver({
+    required String cooperativaId,
+    required String email,
+    required String password,
+    required String fullName,
+    String? licenseNumber,
+  });
 }

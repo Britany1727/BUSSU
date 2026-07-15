@@ -131,6 +131,7 @@ create policy "Usuario gestiona su avatar"
     and auth.uid()::text = (storage.foldername(name))[1]
   );
 
+drop policy if exists "Usuario elimina su avatar" on storage.objects;
 create policy "Usuario elimina su avatar"
   on storage.objects for delete
   using (
@@ -147,6 +148,7 @@ create policy "Admins ven documentos"
     and auth_user_role() in ('cooperativa_admin', 'municipal_admin')
   );
 
+drop policy if exists "Admins suben documentos" on storage.objects;
 create policy "Admins suben documentos"
   on storage.objects for insert
   with check (

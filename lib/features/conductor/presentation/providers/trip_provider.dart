@@ -1,9 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
 
-import '../../../../core/constants/app_roles.dart';
-import '../../../../core/constants/app_roles.dart';
 import '../../data/datasources/ir_passenger_counter_datasource.dart';
 import '../../data/datasources/obd_telemetry_datasource.dart';
 import '../../domain/entities/trip_entity.dart';
@@ -13,6 +12,9 @@ import '../../domain/usecases/end_trip_usecase.dart';
 import '../../domain/usecases/publish_telemetry_usecase.dart';
 import '../../domain/usecases/request_new_stop_usecase.dart';
 import '../../domain/usecases/start_trip_usecase.dart';
+
+final tripActiveProvider = StateProvider<bool>((ref) => false);
+final driverLocationProvider = StateProvider<LatLng?>((ref) => null);
 
 final tripRepositoryProvider = Provider<TripRepository>((_) {
   throw UnimplementedError('Registra en injection_container');

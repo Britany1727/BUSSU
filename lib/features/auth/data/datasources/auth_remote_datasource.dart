@@ -6,11 +6,20 @@ import '../../../../core/constants/app_roles.dart';
 import '../../domain/enums/auth_event_type.dart';
 import '../models/auth_user_model.dart';
 
+/// Resultado del registro: puede ser el usuario creado o indicación
+/// de que se requiere confirmación de correo.
+class SignUpResult {
+  final AppUserModel? user;
+  final bool emailConfirmationPending;
+
+  const SignUpResult({this.user, this.emailConfirmationPending = false});
+}
+
 /// Datasource remoto de autenticación usando Supabase Auth.
 abstract class AuthRemoteDataSource {
   Future<AppUserModel> signIn(String email, String password);
 
-  Future<AppUserModel> signUp({
+  Future<SignUpResult> signUp({
     required String email,
     required String password,
     required String fullName,
@@ -60,7 +69,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<AppUserModel> signUp({
+  Future<SignUpResult> signUp({
     required String email,
     required String password,
     required String fullName,
@@ -70,11 +79,14 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       email: email,
       password: password,
       data: {'full_name': fullName, 'role': role},
+      emailRedirectTo: 'io.verve.bussu://login-callback',
     );
 
     final userId = response.user?.id;
+
+    // Si userId es null, Supabase está esperando confirmación de correo
     if (userId == null) {
-      throw const AuthException('Error al crear usuario');
+      return const SignUpResult(emailConfirmationPending: true);
     }
 
     final user = AppUserModel(
@@ -85,9 +97,14 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       createdAt: DateTime.now(),
     );
 
-    await insertProfile(user);
+    // Si ya hay sesión (confirmación automática o deshabilitada), crear perfil
+    if (response.session != null) {
+      await insertProfile(user);
+    }
+    // Si no hay sesión, el trigger handle_new_user() crea el perfil
+    // cuando el usuario confirma su correo
 
-    return user;
+    return SignUpResult(user: user);
   }
 
   @override

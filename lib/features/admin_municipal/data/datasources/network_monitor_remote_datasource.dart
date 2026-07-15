@@ -27,6 +27,13 @@ abstract class NetworkMonitorRemoteDataSource {
   Future<void> updateRole(String userId, String role);
 
   Future<Map<String, dynamic>> fetchPublicReport();
+
+  Future<String> createCooperativaWithAdmin({
+    required String name,
+    required String ruc,
+    required String email,
+    required String password,
+  });
 }
 
 class NetworkMonitorRemoteDataSourceImpl
@@ -198,5 +205,37 @@ class NetworkMonitorRemoteDataSourceImpl
       'unresolved_alerts': (alertsResult as List<dynamic>).length,
       'generated_at': DateTime.now().toIso8601String(),
     };
+  }
+
+  @override
+  Future<String> createCooperativaWithAdmin({
+    required String name,
+    required String ruc,
+    required String email,
+    required String password,
+  }) async {
+    final coopResult = await _client.from('cooperativas').insert({
+      'name': name,
+      'ruc': ruc,
+      'status': 'active',
+    }).select('id').single();
+
+    final coopId = coopResult['id'] as String;
+
+    final authResult = await _client.auth.signUp(
+      email: email,
+      password: password,
+      data: {'full_name': name, 'role': 'cooperativa_admin'},
+      emailRedirectTo: 'io.verve.bussu://login-callback',
+    );
+
+    if (authResult.user != null) {
+      await _client.from('profiles').update({
+        'cooperativa_id': coopId,
+        'role': 'cooperativa_admin',
+      }).eq('id', authResult.user!.id);
+    }
+
+    return coopId;
   }
 }

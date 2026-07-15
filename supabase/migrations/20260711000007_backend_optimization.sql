@@ -90,7 +90,7 @@ create index if not exists idx_bridge_health_heartbeat
 
 -- 3.7 Cola offline con orden
 drop index if exists idx_offline_queue_pending;
-create index idx_offline_queue_pending_order
+create index if not exists idx_offline_queue_pending_order
   on telemetry_offline_queue(processed, retries, enqueued_at)
   where processed = false and retries < 5;
 
@@ -129,7 +129,7 @@ alter table bus_live_position validate constraint chk_speed_range;
 
 -- 5.1 bus_live_position: restringir INSERT/UPDATE a service_role
 -- (antes usaba using(true) — cualquier usuario autenticado podía modificar)
-drop policy if exists "Servicio puente actualiza posición (service_role)" on bus_live_position;
+drop policy if exists "Servicio puente inserta posición (service_role)" on bus_live_position;
 drop policy if exists "Servicio puente actualiza posición (service_role)" on bus_live_position;
 
 create policy "Bridge manages live position (insert)"
@@ -388,12 +388,13 @@ returns table (
     r.name as route_name,
     count(t.id) as total_trips,
     count(t.id) filter (where t.status = 'completed') as completed_trips,
-    coalesce(avg(th.occupancy_pct), 0) as avg_occupancy,
+    coalesce(avg(case when b.capacity > 0 then (th.passenger_count::double precision / b.capacity) * 100 end), 0) as avg_occupancy,
     coalesce(avg(th.speed_kmh), 0) as avg_speed,
     coalesce(sum(th.passenger_count), 0) as total_passengers
   from routes r
   left join trips t on t.route_id = r.id
     and t.started_at > now() - make_interval(days => lookback_days)
+  left join buses b on b.id = t.bus_id
   left join bus_telemetry_history th on th.bus_id = t.bus_id
     and th.recorded_at between t.started_at and coalesce(t.ended_at, now())
     and th.recorded_at > now() - make_interval(days => lookback_days)

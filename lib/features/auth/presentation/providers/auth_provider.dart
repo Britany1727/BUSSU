@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_roles.dart';
 import '../../../../core/di/injection_container.dart';
+import '../../../../core/error/failures.dart';
 import '../../../../core/routing/role_guard.dart';
 import '../../../../core/security/device_binding_service.dart';
 import '../../domain/entities/auth_user.dart';
@@ -155,10 +156,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
 
     result.fold(
-      (failure) => state = state.copyWith(
-        status: AuthStatus.unauthenticated,
-        errorMessage: failure.message,
-      ),
+      (failure) {
+        if (failure is EmailConfirmationPendingFailure) {
+          // Registro exitoso, pero requiere confirmación de correo
+          state = state.copyWith(
+            status: AuthStatus.unauthenticated,
+            errorMessage: failure.message,
+          );
+        } else {
+          state = state.copyWith(
+            status: AuthStatus.unauthenticated,
+            errorMessage: failure.message,
+          );
+        }
+      },
       (user) {
         state = state.copyWith(
           status: AuthStatus.authenticated,

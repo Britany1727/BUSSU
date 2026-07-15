@@ -1,14 +1,16 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/maps/marker_service.dart';
+import '../../../../core/services/location_service.dart';
 import '../../../../shared/domain/entities/route_entity.dart';
 import '../../../../shared/domain/entities/stop_entity.dart';
+import '../../../../shared/presentation/providers/location_provider.dart';
 import '../../../../shared/presentation/widgets/live_map_widget.dart';
 import '../../../admin_municipal/presentation/providers/system_alerts_provider.dart';
 import '../../../admin_municipal/domain/entities/system_alert.dart';
-import '../../../../core/services/location_service.dart';
 import '../providers/trip_provider.dart';
 import 'driver_dashboard_page.dart';
 
@@ -24,6 +26,7 @@ class _ActiveTripPageState extends ConsumerState<ActiveTripPage> {
   LatLng? _stopRequestPin;
   final _reasonCtrl = TextEditingController();
   final MarkerService _markerService = const MarkerService();
+  StreamSubscription<LocationData>? _locationSub;
 
   final RouteEntity _mockRoute = RouteEntity(
     id: 'route-a', name: 'Ruta A - Centro',
@@ -36,7 +39,59 @@ class _ActiveTripPageState extends ConsumerState<ActiveTripPage> {
   );
 
   @override
-  void dispose() { _reasonCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    _locationSub?.cancel();
+    _reasonCtrl.dispose();
+    super.dispose();
+  }
+
+  void _startRouteTracking() async {
+    final service = ref.read(locationServiceProvider);
+    final permission = await service.hasPermission();
+    if (!permission) {
+      final granted = await service.requestPermission();
+      if (!granted) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Se requiere permiso de ubicación para iniciar la ruta'),
+          backgroundColor: Color(0xFFBA1A1A),
+        ));
+        return;
+      }
+    }
+    final result = await service.getCurrentLocation();
+    result.fold(
+      (f) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(f.message.toString()),
+          backgroundColor: const Color(0xFFBA1A1A),
+        ));
+      },
+      (loc) {
+        if (!mounted) return;
+        final latLng = LatLng(loc.latitude, loc.longitude);
+        ref.read(driverLocationProvider.notifier).state = latLng;
+        _startPublishingLocation(service);
+        setState(() => _routeStarted = true);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Ruta iniciada — ubicación en tiempo real activada'),
+          backgroundColor: Color(0xFF001B44),
+        ));
+      },
+    );
+  }
+
+  void _startPublishingLocation(LocationService service) {
+    _locationSub?.cancel();
+    _locationSub = service.onLocationChanged.listen((loc) {
+      if (!mounted) return;
+      final latLng = LatLng(loc.latitude, loc.longitude);
+      ref.read(driverLocationProvider.notifier).state = latLng;
+      ref.read(publishTelemetryUseCaseProvider).execute(
+        busId: 'bus-123', lat: loc.latitude, lng: loc.longitude,
+        speedKmh: loc.speed ?? 0, heading: loc.heading ?? 0,
+      );
+    });
+  }
 
   void _confirmPassengerChange(int newCount) {
     showDialog(context: context, builder: (_) => AlertDialog(
@@ -82,7 +137,10 @@ class _ActiveTripPageState extends ConsumerState<ActiveTripPage> {
   }
 
   void _endTrip() {
+    _locationSub?.cancel();
+    _locationSub = null;
     ref.read(tripActiveProvider.notifier).state = false;
+    ref.read(driverLocationProvider.notifier).state = null;
     ref.read(endTripUseCaseProvider).execute('current-trip');
   }
 
@@ -112,7 +170,7 @@ class _ActiveTripPageState extends ConsumerState<ActiveTripPage> {
           const Expanded(child: Text('Próxima: Plaza de Armas', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF001B44), fontFamily: 'Inter'))),
           IconButton(onPressed: _routeStarted ? _reportIncident : null, icon: Icon(Icons.warning_amber, color: _routeStarted ? const Color(0xFFBA1A1A) : Colors.grey, size: 22)),
         ]))),
-        if (!_routeStarted) Positioned.fill(child: Center(child: ElevatedButton.icon(onPressed: () => setState(() => _routeStarted = true), icon: const Icon(Icons.play_circle, size: 28), label: const Text('Iniciar ruta'), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF001B44), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, fontFamily: 'Inter'))))),
+        if (!_routeStarted) Positioned.fill(child: Center(child: ElevatedButton.icon(onPressed: _startRouteTracking, icon: const Icon(Icons.play_circle, size: 28), label: const Text('Iniciar ruta'), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF001B44), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, fontFamily: 'Inter'))))),
         if (_routeStarted) Positioned(bottom: 0, left: 0, right: 0, child: Container(decoration: BoxDecoration(color: Colors.white, borderRadius: const BorderRadius.vertical(top: Radius.circular(20)), boxShadow: const [BoxShadow(color: Color(0x14002F6C), blurRadius: 16, offset: Offset(0, -4))]), padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
           Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
           const SizedBox(height: 12),
