@@ -33,10 +33,10 @@ class _IncidentsPageState extends ConsumerState<IncidentsPage> {
     final alerts = ref.watch(systemAlertsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Alertas del Sistema')),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showCreateDialog(context),
-        child: const Icon(Icons.add_alert),
+        backgroundColor: const Color(0xFF001B44),
+        child: const Icon(Icons.add_alert, color: Colors.white),
       ),
       body: alerts.when(
         loading: () => const Center(child: CircularProgressIndicator()),

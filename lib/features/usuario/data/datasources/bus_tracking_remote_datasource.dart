@@ -59,9 +59,9 @@ class BusTrackingRemoteDataSourceImpl
     return _client
         .from('bus_live_position')
         .stream(primaryKey: ['bus_id'])
-        .eq('route_id', routeId)
         .map((rows) => rows
             .map((row) => BusModel.fromRealtime(row as Map<String, dynamic>))
+            .where((bus) => bus.routeId == routeId)
             .toList());
   }
 

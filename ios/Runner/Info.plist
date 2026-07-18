@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>BUSSU necesita acceso a tu ubicación para mostrarte rutas y paradas cercanas en tiempo real.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>BUSSU usa tu ubicación para rastrear buses en tiempo real y calcular tiempos de llegada.</string>
+	<key>NSUserNotificationCenterUsageDescription</key>
+	<string>BUSSU te notificará sobre alertas de rutas, proximidad a paradas y estado de tu viaje.</string>
 </dict>
 </plist>

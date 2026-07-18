@@ -32,7 +32,8 @@ class _DriverDashboardPageState extends ConsumerState<DriverDashboardPage> {
         final latLng = LatLng(loc.latitude, loc.longitude);
         ref.read(driverLocationProvider.notifier).state = latLng;
         ref.read(tripActiveProvider.notifier).state = true;
-        ref.read(startTripUseCaseProvider).execute(driverId: 'current-driver', busId: 'bus-123', routeId: 'route-a');
+        final driverId = ref.read(driverIdProvider);
+        ref.read(startTripUseCaseProvider).execute(driverId: driverId, busId: 'bus-123', routeId: 'route-a');
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Viaje iniciado — presiona "Iniciar ruta" para activar GPS'), backgroundColor: Color(0xFF001B44)));
       },
     );

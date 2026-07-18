@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/maps/marker_service.dart';
 import '../../../../core/maps/tile_provider.dart';
 import '../../../../shared/domain/entities/stop_entity.dart';
+import '../../../../shared/presentation/providers/location_provider.dart';
 import '../../../../shared/presentation/widgets/live_map_widget.dart';
 import '../providers/fleet_provider.dart';
 
@@ -22,6 +23,7 @@ class _CoopStopsPageState extends ConsumerState<CoopStopsPage> {
   int? _movingIdx;
   final MarkerService _markerService = const MarkerService();
   final MapController _reqMapCtrl = MapController();
+  final MapController _mainMapCtrl = MapController();
 
   final List<Map<String, dynamic>> _stopsList = [
     {'name': 'Plaza de Armas', 'route': 'Ruta A', 'order': '1', 'lat': -12.045, 'lng': -77.031},
@@ -29,11 +31,6 @@ class _CoopStopsPageState extends ConsumerState<CoopStopsPage> {
     {'name': 'Parque Universitario', 'route': 'Ruta A', 'order': '3', 'lat': -12.047, 'lng': -77.033},
     {'name': 'Parque Kennedy', 'route': 'Ruta B', 'order': '1', 'lat': -12.048, 'lng': -77.034},
     {'name': 'Larcomar', 'route': 'Ruta B', 'order': '2', 'lat': -12.049, 'lng': -77.035},
-  ];
-
-  final _requestPins = [
-    {'driver': 'Carlos M.', 'lat': -12.0482, 'lng': -77.0410, 'reason': 'Alta demanda'},
-    {'driver': 'Luisa R.', 'lat': -12.0492, 'lng': -77.0425, 'reason': 'Zona residencial'},
   ];
 
   @override
@@ -70,26 +67,39 @@ class _CoopStopsPageState extends ConsumerState<CoopStopsPage> {
   }
 
   Widget _buildMapView(List<StopEntity> stops) {
-    final requestMarkers = _requestPins.map((r) => _markerService.createRequestMarker(
-      id: 'req_${r['driver']}', point: LatLng(r['lat'] as double, r['lng'] as double),
-      title: r['driver'] as String, subtitle: r['reason'] as String,
-    )).toList();
     final pinMarkers = _newStopPos != null ? [_markerService.createRequestMarker(id: 'new', point: _newStopPos!, title: 'Nueva')] : <Marker>[];
 
     return Column(children: [
-      Expanded(child: LiveMapWidget(
-        initialCenter: const LatLng(-12.0464, -77.0428), initialZoom: 14,
-        stops: stops,
-        extraMarkers: [...requestMarkers, ...pinMarkers],
-        onMapTapped: (pos) {
-          if (_movingIdx != null) {
-            setState(() { _stopsList[_movingIdx!]['lat'] = pos.latitude; _stopsList[_movingIdx!]['lng'] = pos.longitude; _movingIdx = null; });
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Parada movida'), backgroundColor: Color(0xFF001B44)));
-          } else {
-            setState(() => _newStopPos = pos);
-          }
-        },
-      )),
+      Expanded(child: Stack(children: [
+        LiveMapWidget(
+          initialCenter: const LatLng(-12.0464, -77.0428), initialZoom: 14,
+          stops: stops,
+          extraMarkers: pinMarkers,
+          externalMapController: _mainMapCtrl,
+          onMapTapped: (pos) {
+            if (_movingIdx != null) {
+              setState(() { _stopsList[_movingIdx!]['lat'] = pos.latitude; _stopsList[_movingIdx!]['lng'] = pos.longitude; _movingIdx = null; });
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Parada movida'), backgroundColor: Color(0xFF001B44)));
+            } else {
+              setState(() => _newStopPos = pos);
+            }
+          },
+        ),
+        Positioned(right: 12, bottom: 12, child: FloatingActionButton.small(
+          onPressed: () async {
+            final svc = ref.read(locationServiceProvider);
+            final loc = await svc.getCurrentLocation();
+            loc.fold((f) {
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(f.message), backgroundColor: const Color(0xFFBA1A1A)));
+            }, (l) {
+              final pos = LatLng(l.latitude, l.longitude);
+              _mainMapCtrl.move(pos, 15);
+            });
+          },
+          backgroundColor: Colors.white,
+          child: const Icon(Icons.my_location, color: Color(0xFF001B44)),
+        )),
+      ])),
       if (_movingIdx != null) Container(width: double.infinity, color: Colors.orange.shade100, padding: const EdgeInsets.all(10), child: const Row(children: [Icon(Icons.touch_app, size: 18), SizedBox(width: 8), Text('Toca el mapa para mover la parada', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))])),
       Padding(padding: const EdgeInsets.all(12), child: Row(children: [
         Expanded(child: TextField(controller: _nameCtrl, decoration: const InputDecoration(hintText: 'Nombre de la nueva parada', hintStyle: TextStyle(fontSize: 13, fontFamily: 'Inter'), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(8)), borderSide: BorderSide(color: Color(0xFFE0E0E0))), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)))),
@@ -154,67 +164,107 @@ class _CoopStopsPageState extends ConsumerState<CoopStopsPage> {
   }
 
   Widget _buildRequestsView() {
-    final mockRequests = [
-      {'id': '1', 'driver_name': 'Carlos M.', 'proposed_lat': '-12.0467', 'proposed_lng': '-77.0433', 'justification': 'Alta demanda en la zona', 'created_at': '2026-07-12'},
-      {'id': '2', 'driver_name': 'Luisa R.', 'proposed_lat': '-12.0472', 'proposed_lng': '-77.0441', 'justification': 'Zona residencial sin parada', 'created_at': '2026-07-10'},
-    ];
-    return StatefulBuilder(builder: (context, setLocalState) {
-      final reqMarkers = mockRequests.map((r) => _markerService.createRequestMarker(
-        id: 'req_${r['id']}', point: LatLng(double.tryParse(r['proposed_lat'] as String) ?? 0, double.tryParse(r['proposed_lng'] as String) ?? 0),
-        title: r['driver_name'] as String, subtitle: r['justification'] as String,
-      )).toList();
-      final cards = mockRequests.map((r) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
-                    const Icon(Icons.location_on, size: 18, color: Color(0xFF001B44)),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text('${r['proposed_lat']}, ${r['proposed_lng']}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF001B44), fontFamily: 'Inter'))),
-                  ]),
-                  Text('Conductor: ${r['driver_name']}', style: const TextStyle(fontSize: 13, fontFamily: 'Inter', color: Color(0xFF434750))),
-                  Text('Motivo: ${r['justification']}', style: const TextStyle(fontSize: 13, fontFamily: 'Inter', color: Color(0xFF434750))),
-                  Text('Fecha: ${r['created_at']}', style: const TextStyle(fontSize: 12, fontFamily: 'Inter', color: Color(0xFF434750))),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(child: OutlinedButton(onPressed: () { setLocalState(() { mockRequests.remove(r); }); }, style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFBA1A1A), side: const BorderSide(color: Color(0xFFBA1A1A)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), child: const Text('Rechazar', style: TextStyle(fontFamily: 'Inter')))),
-                    const SizedBox(width: 10),
-                    Expanded(child: ElevatedButton(onPressed: () { setLocalState(() { mockRequests.remove(r); }); }, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF001B44), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), child: const Text('Aprobar', style: TextStyle(fontFamily: 'Inter')))),
-                  ]),
-                ],
+    final pendingAsync = ref.watch(pendingStopRequestsProvider);
+    return pendingAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error: $e')),
+      data: (requests) {
+        if (requests.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.how_to_reg_outlined, size: 64, color: Colors.grey.shade300),
+                const SizedBox(height: 16),
+                const Text('No hay solicitudes pendientes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF434750), fontFamily: 'Inter')),
+              ],
+            ),
+          );
+        }
+        final reqMarkers = requests.map((r) {
+          final lat = (r['proposed_lat'] as num?)?.toDouble() ?? 0;
+          final lng = (r['proposed_lng'] as num?)?.toDouble() ?? 0;
+          final driver = r['drivers'] as Map<String, dynamic>?;
+          final profile = driver?['profiles'] as Map<String, dynamic>?;
+          return _markerService.createRequestMarker(
+            id: 'req_${r['id']}', point: LatLng(lat, lng),
+            title: profile?['full_name'] ?? 'Conductor',
+            subtitle: r['justification'] as String? ?? '',
+          );
+        }).toList();
+        final cards = requests.map((r) {
+          final driver = r['drivers'] as Map<String, dynamic>?;
+          final profile = driver?['profiles'] as Map<String, dynamic>?;
+          final lat = (r['proposed_lat'] as num?)?.toDouble() ?? 0;
+          final lng = (r['proposed_lng'] as num?)?.toDouble() ?? 0;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      const Icon(Icons.location_on, size: 18, color: Color(0xFF001B44)),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text('${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF001B44), fontFamily: 'Inter'))),
+                    ]),
+                    Text('Conductor: ${profile?['full_name'] ?? 'Desconocido'}', style: const TextStyle(fontSize: 13, fontFamily: 'Inter', color: Color(0xFF434750))),
+                    Text('Motivo: ${r['justification'] ?? ''}', style: const TextStyle(fontSize: 13, fontFamily: 'Inter', color: Color(0xFF434750))),
+                    Text('Fecha: ${r['created_at']?.toString().substring(0, 10) ?? ''}', style: const TextStyle(fontSize: 12, fontFamily: 'Inter', color: Color(0xFF434750))),
+                    const SizedBox(height: 12),
+                    Row(children: [
+                      Expanded(child: OutlinedButton(
+                        onPressed: () async {
+                          await ref.read(fleetRepositoryProvider).rejectStopRequest(r['id'] as String);
+                          ref.invalidate(pendingStopRequestsProvider);
+                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Solicitud rechazada'), backgroundColor: Color(0xFFBA1A1A)));
+                        },
+                        style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFBA1A1A), side: const BorderSide(color: Color(0xFFBA1A1A)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                        child: const Text('Rechazar', style: TextStyle(fontFamily: 'Inter')),
+                      )),
+                      const SizedBox(width: 10),
+                      Expanded(child: ElevatedButton(
+                        onPressed: () async {
+                          await ref.read(fleetRepositoryProvider).approveStopRequest(r['id'] as String);
+                          ref.invalidate(pendingStopRequestsProvider);
+                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Solicitud aprobada'), backgroundColor: Color(0xFF2E7D32)));
+                        },
+                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                        child: const Text('Aprobar', style: TextStyle(fontFamily: 'Inter')),
+                      )),
+                    ]),
+                  ],
+                ),
               ),
             ),
-          ),
+          );
+        }).toList();
+        return ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          children: [
+            SizedBox(
+              height: 160,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: FlutterMap(
+                  mapController: _reqMapCtrl,
+                  options: const MapOptions(initialCenter: LatLng(-12.0464, -77.0428), initialZoom: 14),
+                  children: [
+                    TileLayer(urlTemplate: OpenStreetMapConfig.defaultUrlTemplate, userAgentPackageName: OpenStreetMapConfig.defaultUserAgent),
+                    MarkerLayer(markers: reqMarkers),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text('Solicitudes pendientes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF001B44), fontFamily: 'Inter')),
+            ...cards,
+          ],
         );
-      }).toList();
-      return ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: [
-          SizedBox(
-            height: 160,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: FlutterMap(
-                mapController: _reqMapCtrl,
-                options: const MapOptions(initialCenter: LatLng(-12.0464, -77.0428), initialZoom: 14),
-                children: [
-                  TileLayer(urlTemplate: OpenStreetMapConfig.defaultUrlTemplate, userAgentPackageName: OpenStreetMapConfig.defaultUserAgent),
-                  MarkerLayer(markers: reqMarkers),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text('Solicitudes pendientes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF001B44), fontFamily: 'Inter')),
-          ...cards,
-        ],
-      );
-    });
+      },
+    );
   }
 }

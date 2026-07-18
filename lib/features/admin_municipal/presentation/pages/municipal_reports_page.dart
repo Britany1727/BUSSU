@@ -12,9 +12,7 @@ class MunicipalReportsPage extends ConsumerWidget {
     final report = ref.watch(publicReportProvider);
     final cooperativas = ref.watch(cooperativasStatusProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Reportes')),
-      body: ListView(
+    return ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Card(
@@ -65,7 +63,6 @@ class MunicipalReportsPage extends ConsumerWidget {
             ),
           ),
         ],
-      ),
     );
   }
 }

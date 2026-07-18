@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/datasources/ir_passenger_counter_datasource.dart';
 import '../../data/datasources/obd_telemetry_datasource.dart';
 import '../../domain/entities/trip_entity.dart';
@@ -15,6 +16,10 @@ import '../../domain/usecases/start_trip_usecase.dart';
 
 final tripActiveProvider = StateProvider<bool>((ref) => false);
 final driverLocationProvider = StateProvider<LatLng?>((ref) => null);
+
+final driverIdProvider = Provider<String>((ref) {
+  return ref.watch(currentUserProvider)?.id ?? 'unknown-driver';
+});
 
 final tripRepositoryProvider = Provider<TripRepository>((_) {
   throw UnimplementedError('Registra en injection_container');
@@ -46,14 +51,16 @@ final requestNewStopUseCaseProvider = Provider<RequestNewStopUseCase>((ref) {
 
 final activeTripProvider = StreamProvider<TripEntity?>((ref) {
   final repo = ref.watch(tripRepositoryProvider);
-  return repo.watchActiveTrip('current-driver').map(
+  final id = ref.watch(driverIdProvider);
+  return repo.watchActiveTrip(id).map(
     (either) => either.fold((_) => null, (trip) => trip),
   );
 });
 
 final tripHistoryProvider = FutureProvider<List<TripEntity>>((ref) async {
   final repo = ref.watch(tripRepositoryProvider);
-  final result = await repo.getTripHistory('current-driver');
+  final id = ref.watch(driverIdProvider);
+  final result = await repo.getTripHistory(id);
   return result.fold((_) => [], (trips) => trips);
 });
 

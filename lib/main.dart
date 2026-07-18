@@ -23,35 +23,41 @@ void main() async {
       CertificatePinner.configure();
     }
 
+    if (!Env.enableMockAuth) {
+      final supabaseResult = await SupabaseClientFactory.initialize();
+
+      supabaseResult.fold(
+        (failure) {
+          debugPrint('Error inicializando Supabase: $failure');
+          debugPrint('Usa --dart-define=ENABLE_MOCK_AUTH=true para modo prueba');
+        },
+        (client) {
+          GetIt.instance.registerLazySingleton<SupabaseClient>(() => client);
+        },
+      );
+    }
+
     await configureDependencies();
 
-    if (Env.enableMockAuth) {
-    if (kDebugMode) {
-      debugPrint('========================================');
-      debugPrint('  BUSSU — MODO PRUEBAS');
-      debugPrint('  No se requiere backend Supabase');
-      debugPrint('========================================');
-      debugPrint('  Credenciales de prueba:');
-      debugPrint('    Usuario:   test@test.com / 12345678');
-      debugPrint('    Conductor: driver@test.com / 12345678');
-      debugPrint('    Coop:      coop@test.com / 12345678');
-      debugPrint('    Admin:     admin@test.com / 12345678');
-      debugPrint('========================================');
+    if (!Env.enableMockAuth) {
+      GetIt.instance<AuthSessionManager>().initialize();
     }
-  } else {
-    final supabaseResult = await SupabaseClientFactory.initialize();
 
-    supabaseResult.fold(
-      (failure) {
-        debugPrint('Error inicializando Supabase: $failure');
-        debugPrint('Usa --dart-define=ENABLE_MOCK_AUTH=true para modo prueba');
-      },
-      (client) {
-        GetIt.instance.registerLazySingleton<SupabaseClient>(() => client);
-        GetIt.instance<AuthSessionManager>().initialize();
-      },
-    );
-  }
+    if (Env.enableMockAuth) {
+      if (kDebugMode) {
+        debugPrint('========================================');
+        debugPrint('  BUSSU — MODO PRUEBAS');
+        debugPrint('  No se requiere backend Supabase');
+        debugPrint('========================================');
+        debugPrint('  Credenciales de prueba:');
+        debugPrint('    Usuario:   test@test.com / 12345678');
+        debugPrint('    Conductor: driver@test.com / 12345678');
+        debugPrint('    Coop:      coop@test.com / 12345678');
+        debugPrint('    Admin:     admin@test.com / 12345678');
+        debugPrint('    Premium:   premium@test.com / 12345678');
+        debugPrint('========================================');
+      }
+    }
 
   runApp(
     ProviderScope(

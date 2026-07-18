@@ -12,6 +12,7 @@ import '../../features/admin_municipal/presentation/pages/municipal_reports_page
 import '../../features/admin_municipal/presentation/pages/premium_management_page.dart';
 import '../../features/admin_municipal/presentation/pages/user_management_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/auth/presentation/pages/permissions_request_page.dart';
 import '../../features/chat/presentation/pages/chat_page.dart';
 import '../../features/conductor/presentation/pages/active_trip_page.dart';
 import '../../features/conductor/presentation/pages/c_scaffold.dart';
@@ -39,23 +40,36 @@ import '../../features/usuario/presentation/pages/routes_page.dart';
 import '../../features/usuario/presentation/pages/tickets_page.dart';
 import '../../features/usuario/presentation/pages/trip_history_page.dart';
 import '../constants/app_roles.dart';
+import '../services/permission_service.dart';
 import 'role_guard.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateChangesProvider);
+  final permissionService = PermissionService();
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/login',
-    redirect: (context, state) {
+    redirect: (context, state) async {
       final isLoggedIn = authState.valueOrNull != null;
       final isLoginRoute = state.matchedLocation == '/login';
+      final isPermissionsRoute = state.matchedLocation == '/permissions';
 
       if (!isLoggedIn && !isLoginRoute) return '/login';
       if (isLoggedIn && isLoginRoute) {
+        final hasPermissions = await permissionService.areAllPermissionsGranted();
+        if (!hasPermissions) return '/permissions';
         return authState.valueOrNull!.pathPrefix;
+      }
+      if (isLoggedIn && !isPermissionsRoute) {
+        final hasPermissions = await permissionService.areAllPermissionsGranted();
+        if (!hasPermissions) return '/permissions';
+      }
+      if (isLoggedIn && isPermissionsRoute) {
+        final hasPermissions = await permissionService.areAllPermissionsGranted();
+        if (hasPermissions) return authState.valueOrNull!.pathPrefix;
       }
 
       if (isLoggedIn) {
@@ -63,19 +77,19 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         final currentPath = state.matchedLocation;
         switch (role) {
           case UserRole.usuario:
-            if (!currentPath.startsWith('/usuario') && currentPath != '/chat') {
+            if (!currentPath.startsWith('/usuario') && currentPath != '/chat' && !isPermissionsRoute) {
               return '/usuario';
             }
           case UserRole.conductor:
-            if (!currentPath.startsWith('/conductor') && currentPath != '/chat') {
+            if (!currentPath.startsWith('/conductor') && currentPath != '/chat' && !isPermissionsRoute) {
               return '/conductor';
             }
           case UserRole.cooperativaAdmin:
-            if (!currentPath.startsWith('/cooperativa') && currentPath != '/chat') {
+            if (!currentPath.startsWith('/cooperativa') && currentPath != '/chat' && !isPermissionsRoute) {
               return '/cooperativa';
             }
           case UserRole.municipalAdmin:
-            if (!currentPath.startsWith('/admin') && currentPath != '/chat') {
+            if (!currentPath.startsWith('/admin') && currentPath != '/chat' && !isPermissionsRoute) {
               return '/admin';
             }
         }
@@ -87,6 +101,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/login',
         name: 'login',
         builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: '/permissions',
+        name: 'permissions',
+        builder: (context, state) => const PermissionsRequestPage(),
       ),
       GoRoute(
         path: '/usuario',

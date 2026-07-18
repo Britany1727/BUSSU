@@ -13,10 +13,7 @@ class MunicipalConfigPage extends ConsumerWidget {
   const MunicipalConfigPage({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(title: const Text('Configuración', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, color: Color(0xFF001B44))), backgroundColor: const Color(0xFFF8F9FA), elevation: 0),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
+    return ListView(padding: const EdgeInsets.all(16), children: [
         Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), boxShadow: const [BoxShadow(color: Color(0x14002F6C), blurRadius: 8)]), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Parámetros del Sistema', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF001B44), fontFamily: 'Inter')),
           const SizedBox(height: 12),
@@ -33,7 +30,7 @@ class MunicipalConfigPage extends ConsumerWidget {
           _ConfigTile(label: 'Máx. conductores', value: '${ref.watch(maxDriversProvider)}'),
           _ConfigTile(label: 'Retención de telemetría', value: '${ref.watch(retentionDaysProvider)} días'),
         ])),
-      ]),
+      ],
     );
   }
 }

@@ -22,6 +22,8 @@ class _RoutesPageState extends ConsumerState<RoutesPage> {
   final Set<String> _localFavorites = {};
   final PolylineService _polylineService = const PolylineService();
   final MapController _miniMapCtrl = MapController();
+  String _searchQuery = '';
+  final TextEditingController _searchCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -30,6 +32,12 @@ class _RoutesPageState extends ConsumerState<RoutesPage> {
       final favs = ref.read(favoritesProvider).valueOrNull ?? [];
       setState(() => _localFavorites.addAll(favs.where((f) => f.type == FavoriteType.route).map((f) => f.itemId)));
     });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   bool _isFav(String routeId) => _localFavorites.contains(routeId);
@@ -58,6 +66,10 @@ class _RoutesPageState extends ConsumerState<RoutesPage> {
     final selectedRouteId = ref.watch(selectedRouteIdProvider);
     final allRoutes = routesAsync.valueOrNull ?? [];
 
+    final filteredRoutes = _searchQuery.isEmpty
+        ? allRoutes
+        : allRoutes.where((r) => r.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+
     final expandedRoute = _expandedRouteId != null
         ? allRoutes.where((r) => r.id == _expandedRouteId).firstOrNull
         : null;
@@ -75,9 +87,11 @@ class _RoutesPageState extends ConsumerState<RoutesPage> {
         ],
         _buildSearchBar(),
         const SizedBox(height: 20),
-        _buildSection('Favoritos', favorites.valueOrNull ?? [], selectedRouteId, ref),
-        const SizedBox(height: 20),
-        _buildSection('Todas las rutas', allRoutes, selectedRouteId, ref),
+        if (_searchQuery.isEmpty) ...[
+          _buildSection('Favoritos', favorites.valueOrNull ?? [], selectedRouteId, ref),
+          const SizedBox(height: 20),
+        ],
+        _buildSection(_searchQuery.isEmpty ? 'Todas las rutas' : 'Resultados', filteredRoutes, selectedRouteId, ref),
       ]),
     );
   }
@@ -194,7 +208,10 @@ class _RoutesPageState extends ConsumerState<RoutesPage> {
 
   Widget _buildSearchBar() {
     return Row(children: [
-      Expanded(child: Container(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: Color(0x14002F6C), blurRadius: 8, offset: Offset(0, 2))]), child: TextField(decoration: InputDecoration(hintText: '¿A dónde vas?', hintStyle: const TextStyle(color: Color(0xFF434750), fontSize: 14, fontFamily: 'Inter'), prefixIcon: const Icon(Icons.search, color: Color(0xFF001B44)), border: OutlineInputBorder(borderRadius: BorderRadius.circular(28), borderSide: BorderSide.none), filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12))),)),
+      Expanded(child: Container(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: Color(0x14002F6C), blurRadius: 8, offset: Offset(0, 2))]), child: TextField(
+        controller: _searchCtrl,
+        onChanged: (v) => setState(() => _searchQuery = v),
+        decoration: InputDecoration(hintText: '¿A dónde vas?', hintStyle: const TextStyle(color: Color(0xFF434750), fontSize: 14, fontFamily: 'Inter'), prefixIcon: const Icon(Icons.search, color: Color(0xFF001B44)), suffixIcon: _searchQuery.isNotEmpty ? IconButton(icon: const Icon(Icons.clear, size: 18), onPressed: () { _searchCtrl.clear(); setState(() => _searchQuery = ''); }) : null, border: OutlineInputBorder(borderRadius: BorderRadius.circular(28), borderSide: BorderSide.none), filled: true, fillColor: Colors.white,         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12))))),
       const SizedBox(width: 12),
       Container(width: 48, height: 48, decoration: BoxDecoration(color: const Color(0xFFFED000), borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.directions, color: Color(0xFF001B44))),
     ]);

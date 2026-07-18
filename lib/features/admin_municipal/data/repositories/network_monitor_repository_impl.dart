@@ -41,6 +41,7 @@ class NetworkMonitorRepositoryImpl implements NetworkMonitorRepository {
             totalCooperativas: data['total_cooperativas'] as int? ?? 0,
             totalBuses: data['total_buses'] as int? ?? 0,
             totalActiveBuses: data['total_active_buses'] as int? ?? 0,
+            totalDrivers: data['total_drivers'] as int? ?? 0,
             totalPassengers: data['total_passengers'] as int? ?? 0,
             activeAlerts: data['active_alerts'] as int? ?? 0,
             systemHealthPct:
@@ -109,6 +110,8 @@ class NetworkMonitorRepositoryImpl implements NetworkMonitorRepository {
           'description': alert.description,
           'route_id': alert.routeId,
           'created_by': alert.createdBy,
+          if (alert.latitude != null) 'latitude': alert.latitude,
+          if (alert.longitude != null) 'longitude': alert.longitude,
         }));
   }
 

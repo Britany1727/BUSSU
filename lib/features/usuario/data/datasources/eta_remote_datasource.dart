@@ -64,14 +64,12 @@ class EtaRemoteDataSourceImpl implements EtaRemoteDataSource {
   @override
   Future<List<List<double>>?> fetchRoutePolyline(String routeId) async {
     try {
-      final result = await _client
-          .from('routes')
-          .select('polyline')
-          .eq('id', routeId)
-          .single();
+      final result = await _client.rpc('get_route_polyline', params: {
+        'p_route_id': routeId,
+      });
 
-      final polylineRaw = result['polyline'] as List<dynamic>;
-      return polylineRaw
+      final polylineData = result as List<dynamic>;
+      return polylineData
           .map((p) => [
                 (p as Map<String, dynamic>)['lat'] as double,
                 p['lng'] as double,
@@ -85,7 +83,7 @@ class EtaRemoteDataSourceImpl implements EtaRemoteDataSource {
   @override
   Future<List<Map<String, dynamic>>> fetchAvailableRoutes() async {
     final response =
-        await _client.from('routes').select('*, stops(*)').order('name');
+        await _client.from('routes_for_app').select('*, stops(*)').order('name');
     return (response as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
@@ -93,7 +91,7 @@ class EtaRemoteDataSourceImpl implements EtaRemoteDataSource {
   Future<Map<String, dynamic>?> fetchRouteWithBuses(String routeId) async {
     try {
       final routeResult = await _client
-          .from('routes')
+          .from('routes_for_app')
           .select('*, stops(*)')
           .eq('id', routeId)
           .single();

@@ -23,6 +23,9 @@ class AppUser {
   /// ID de cooperativa asociada (si el usuario es cooperativa_admin o conductor).
   final String? cooperativaId;
 
+  /// URL del avatar del usuario.
+  final String? avatarUrl;
+
   /// Fecha de creación del perfil.
   final DateTime createdAt;
 
@@ -34,6 +37,7 @@ class AppUser {
     this.isPremium = false,
     this.deviceId,
     this.cooperativaId,
+    this.avatarUrl,
     required this.createdAt,
   });
 
@@ -45,6 +49,7 @@ class AppUser {
     bool? isPremium,
     String? deviceId,
     String? cooperativaId,
+    String? avatarUrl,
     DateTime? createdAt,
   }) {
     return AppUser(
@@ -55,6 +60,7 @@ class AppUser {
       isPremium: isPremium ?? this.isPremium,
       deviceId: deviceId ?? this.deviceId,
       cooperativaId: cooperativaId ?? this.cooperativaId,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       createdAt: createdAt ?? this.createdAt,
     );
   }

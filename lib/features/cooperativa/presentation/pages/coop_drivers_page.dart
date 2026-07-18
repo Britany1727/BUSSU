@@ -100,7 +100,14 @@ class _CoopDriversPageState extends ConsumerState<CoopDriversPage> {
       content: Text('¿Eliminar a ${d.fullName} permanentemente?', style: const TextStyle(fontFamily: 'Inter')),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-        ElevatedButton(onPressed: () { Navigator.pop(context); ref.invalidate(driversProvider(ref.read(currentCoopIdProvider))); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${d.fullName} eliminado'), backgroundColor: const Color(0xFFBA1A1A))); }, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFBA1A1A), foregroundColor: Colors.white), child: const Text('Eliminar')),
+        ElevatedButton(onPressed: () async {
+          final coopId = ref.read(currentCoopIdProvider);
+          await ref.read(fleetRepositoryProvider).deleteDriver(d.id);
+          if (!mounted) return;
+          Navigator.pop(context);
+          ref.invalidate(driversProvider(coopId));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${d.fullName} eliminado'), backgroundColor: const Color(0xFFBA1A1A)));
+        }, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFBA1A1A), foregroundColor: Colors.white), child: const Text('Eliminar')),
       ],
     ));
   }

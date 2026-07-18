@@ -46,7 +46,9 @@ class NetworkMonitorRemoteDataSourceImpl
   Future<Map<String, dynamic>> fetchMunicipalOverview() async {
     final coopResult = await _client.from('cooperativas').select('id');
     final busResult = await _client.from('buses').select('id');
-    final liveResult = await _client.from('bus_live_position').select('id, passenger_count');
+    final liveResult = await _client.from('bus_live_position').select('bus_id, passenger_count');
+    final driverResult = await _client.from('drivers').select('id');
+    final alertsResult = await _client.from('system_alerts').select('id').filter('resolved_at', 'is', null);
 
     final totalCooperativas = (coopResult as List<dynamic>).length;
     final totalBuses = (busResult as List<dynamic>).length;
@@ -60,9 +62,9 @@ class NetworkMonitorRemoteDataSourceImpl
       'total_cooperativas': totalCooperativas,
       'total_buses': totalBuses,
       'total_active_buses': activeList.length,
-      'total_drivers': 0,
+      'total_drivers': (driverResult as List).length,
       'total_passengers': totalPassengers,
-      'active_alerts': 0,
+      'active_alerts': (alertsResult as List).length,
       'system_health_pct':
           totalBuses > 0 ? activeList.length / totalBuses * 100 : 0,
     };
@@ -79,14 +81,27 @@ class NetworkMonitorRemoteDataSourceImpl
   @override
   Future<List<CooperativaStatus>> fetchCooperativasStatus() async {
     final response = await _client.from('cooperativas').select();
-    return (response as List<dynamic>).map((c) {
+    final results = <CooperativaStatus>[];
+    for (final c in (response as List<dynamic>)) {
       final data = c as Map<String, dynamic>;
-      return CooperativaStatus(
-        id: data['id'] as String,
+      final coopId = data['id'] as String;
+      final busCount = await _client.from('buses').select('id').eq('cooperativa_id', coopId);
+      final driverCount = await _client.from('drivers').select('id').eq('cooperativa_id', coopId);
+      final liveBuses = await _client.from('bus_live_position').select('bus_id');
+      final coopBusIds = (busCount as List).map((b) => b['id']).toSet();
+      final activeCount = (liveBuses as List).where((l) => coopBusIds.contains(l['bus_id'])).length;
+      const avgOcc = 0.0;
+      results.add(CooperativaStatus(
+        id: coopId,
         name: data['name'] as String,
         ruc: data['ruc'] as String?,
-      );
-    }).toList();
+        totalBuses: (busCount as List).length,
+        activeBuses: activeCount,
+        totalDrivers: (driverCount as List).length,
+        averageOccupancy: avgOcc,
+      ));
+    }
+    return results;
   }
 
   @override

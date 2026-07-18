@@ -19,7 +19,7 @@ class RouteModel extends RouteEntity {
         .map((s) => StopModel.fromJson(s as Map<String, dynamic>))
         .toList();
 
-    final polylineJson = json['polyline'] as List<dynamic>?;
+    final polylineJson = (json['polyline_formatted'] ?? json['polyline']) as List<dynamic>?;
     final polyline = polylineJson
             ?.map((p) => [
                   (p as Map<String, dynamic>)['lat'] as double,

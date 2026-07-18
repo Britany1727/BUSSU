@@ -140,7 +140,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<void> insertProfile(AppUserModel user) async {
-    await _client.from('profiles').upsert(user.toJson());
+    try {
+      await _client.from('profiles').upsert(user.toJson());
+    } catch (_) {
+      // El trigger handle_new_user() ya pudo haber creado el perfil
+    }
   }
 
   @override

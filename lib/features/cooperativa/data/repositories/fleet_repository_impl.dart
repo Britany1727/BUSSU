@@ -180,16 +180,27 @@ class FleetRepositoryImpl implements FleetRepository {
   @override
   Future<Either<Failure, void>> updateRoute(RouteEntity route) async {
     return ResultMapper.fromAsync(() async {
-      await _remote.upsertRoute({
-        'id': route.id,
+      final data = <String, dynamic>{
         'cooperativa_id': route.cooperativaId,
         'name': route.name,
         'color': route.color,
-        'polyline': route.polyline
-            .map((p) => {'lat': p[0], 'lng': p[1]})
-            .toList(),
-      });
+      };
+      if (route.id.isNotEmpty) {
+        data['id'] = route.id;
+      }
+      if (route.polyline.isNotEmpty) {
+        data['polyline'] = {
+          'type': 'LineString',
+          'coordinates': route.polyline.map((p) => [p[1], p[0]]).toList(),
+        };
+      }
+      await _remote.upsertRoute(data);
     });
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteRoute(String routeId) async {
+    return ResultMapper.fromAsync(() => _remote.deleteRoute(routeId));
   }
 
   @override
@@ -238,5 +249,10 @@ class FleetRepositoryImpl implements FleetRepository {
       fullName: fullName,
       licenseNumber: licenseNumber,
     ));
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteDriver(String driverId) async {
+    return ResultMapper.fromAsync(() => _remote.deleteDriver(driverId));
   }
 }

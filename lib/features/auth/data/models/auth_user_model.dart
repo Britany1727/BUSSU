@@ -12,6 +12,7 @@ class AppUserModel extends AppUser {
     super.isPremium = false,
     super.deviceId,
     super.cooperativaId,
+    super.avatarUrl,
     required super.createdAt,
   });
 
@@ -24,6 +25,7 @@ class AppUserModel extends AppUser {
       isPremium: json['is_premium'] as bool? ?? false,
       deviceId: json['device_id'] as String?,
       cooperativaId: json['cooperativa_id'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
       createdAt: DateTime.parse(
         json['created_at'] as String? ?? DateTime.now().toIso8601String(),
       ),
@@ -38,6 +40,7 @@ class AppUserModel extends AppUser {
       'is_premium': isPremium,
       'device_id': deviceId,
       'cooperativa_id': cooperativaId,
+      'avatar_url': avatarUrl,
     };
   }
 
@@ -49,6 +52,7 @@ class AppUserModel extends AppUser {
         isPremium: isPremium,
         deviceId: deviceId,
         cooperativaId: cooperativaId,
+        avatarUrl: avatarUrl,
         createdAt: createdAt,
       );
 }

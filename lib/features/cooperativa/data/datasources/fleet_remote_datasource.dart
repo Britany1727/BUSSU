@@ -27,6 +27,7 @@ abstract class FleetRemoteDataSource {
   // Routes
   Future<List<Map<String, dynamic>>> fetchRoutes(String cooperativaId);
   Future<void> upsertRoute(Map<String, dynamic> data);
+  Future<void> deleteRoute(String routeId);
 
   // Fleet Health
   Future<FleetHealth> fetchFleetHealth(String cooperativaId);
@@ -47,6 +48,9 @@ abstract class FleetRemoteDataSource {
     required String fullName,
     String? licenseNumber,
   });
+
+  // Driver deletion
+  Future<void> deleteDriver(String driverId);
 }
 
 class FleetRemoteDataSourceImpl implements FleetRemoteDataSource {
@@ -60,7 +64,7 @@ class FleetRemoteDataSourceImpl implements FleetRemoteDataSource {
   Future<List<DriverEntity>> fetchDrivers(String cooperativaId) async {
     final response = await _client
         .from('drivers')
-        .select('id, profiles(full_name, email), license_number, assigned_bus_id, buses(plate)')
+        .select('id, is_active, created_at, profiles(full_name, email), license_number, assigned_bus_id, buses(plate)')
         .eq('cooperativa_id', cooperativaId)
         .order('created_at');
 
@@ -75,6 +79,7 @@ class FleetRemoteDataSourceImpl implements FleetRemoteDataSource {
         licenseNumber: data['license_number'] as String?,
         assignedBusId: data['assigned_bus_id'] as String?,
         assignedBusPlate: bus['plate'] as String?,
+        isActive: data['is_active'] as bool? ?? true,
         createdAt: DateTime.parse(data['created_at'] as String? ??
             DateTime.now().toIso8601String()),
       );
@@ -149,8 +154,8 @@ class FleetRemoteDataSourceImpl implements FleetRemoteDataSource {
   @override
   Future<List<Map<String, dynamic>>> fetchRoutes(String cooperativaId) async {
     final response = await _client
-        .from('routes')
-        .select()
+        .from('routes_for_app')
+        .select('*, stops(*)')
         .eq('cooperativa_id', cooperativaId)
         .order('name');
 
@@ -160,6 +165,12 @@ class FleetRemoteDataSourceImpl implements FleetRemoteDataSource {
   @override
   Future<void> upsertRoute(Map<String, dynamic> data) async {
     await _client.from('routes').upsert(data);
+  }
+
+  @override
+  Future<void> deleteRoute(String routeId) async {
+    await _client.from('stops').delete().eq('route_id', routeId);
+    await _client.from('routes').delete().eq('id', routeId);
   }
 
   @override
@@ -249,5 +260,10 @@ class FleetRemoteDataSourceImpl implements FleetRemoteDataSource {
         'cooperativa_id': cooperativaId,
       }).eq('id', authResult.user!.id);
     }
+  }
+
+  @override
+  Future<void> deleteDriver(String driverId) async {
+    await _client.from('drivers').delete().eq('id', driverId);
   }
 }

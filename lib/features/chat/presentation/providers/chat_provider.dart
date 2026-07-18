@@ -1,10 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/entities/chat_conversation.dart';
 import '../../domain/entities/chat_message.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../../data/repositories/chat_repository_impl.dart';
+import '../../data/datasources/chat_remote_datasource.dart';
 
-final chatRepositoryProvider = Provider<ChatRepository>((_) => ChatRepositoryImpl());
+final chatRemoteDataSourceProvider = Provider<ChatRemoteDataSource>((ref) {
+  return ChatRemoteDataSource(Supabase.instance.client);
+});
+
+final chatRepositoryProvider = Provider<ChatRepository>((ref) {
+  final remote = ref.watch(chatRemoteDataSourceProvider);
+  return ChatRepositoryImpl(remote: remote);
+});
+
+final currentUserIdProvider = Provider<String>((ref) {
+  return Supabase.instance.client.auth.currentUser?.id ?? '';
+});
 
 final conversationsProvider = FutureProvider<List<ChatConversation>>((ref) async {
   final repo = ref.watch(chatRepositoryProvider);
@@ -14,7 +27,10 @@ final conversationsProvider = FutureProvider<List<ChatConversation>>((ref) async
 
 final conversationsStreamProvider = StreamProvider<List<ChatConversation>>((ref) {
   final repo = ref.watch(chatRepositoryProvider);
-  return repo.watchConversations().where((e) => e.isRight()).map((e) => e.fold((_) => [], (list) => list));
+  return repo.watchConversations().map((either) => either.fold(
+    (_) => <ChatConversation>[],
+    (list) => list,
+  ));
 });
 
 final unreadCountProvider = Provider<int>((ref) {
@@ -28,13 +44,11 @@ Stream<List<ChatMessage>> _messageStream(ChatRepository repo, String roomId) asy
   yield allMessages;
 
   await for (final either in repo.watchMessages(roomId)) {
-    either.fold((_) {}, (msg) {
-      final idx = allMessages.indexWhere((m) => m.id == msg.id);
-      if (idx >= 0) {
-        allMessages[idx] = msg;
-      } else {
-        allMessages.add(msg);
-      }
+    either.fold((_) {}, (msgs) {
+      allMessages
+        ..clear()
+        ..addAll(msgs);
+      allMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     });
     yield List<ChatMessage>.from(allMessages);
   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -24,6 +25,49 @@ class _MapPageState extends ConsumerState<MapPage> {
   bool _showStops = false;
   LatLng? _myLocation;
   final PolylineService _polylineService = const PolylineService();
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+  StreamSubscription<LocationData>? _gpsSub;
+  final MapController _mapCtrl = MapController();
+  bool _mapReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initGpsTracking();
+  }
+
+  @override
+  void dispose() {
+    _gpsSub?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _initGpsTracking() async {
+    final service = ref.read(locationServiceProvider);
+    final hasPermission = await service.hasPermission();
+    if (!hasPermission) {
+      await service.requestPermission();
+    }
+    _gpsSub?.cancel();
+    _gpsSub = service.onLocationChanged.listen((loc) {
+      if (!mounted) return;
+      final newPos = LatLng(loc.latitude, loc.longitude);
+      setState(() => _myLocation = newPos);
+      if (_mapReady) {
+        _mapCtrl.move(newPos, _mapCtrl.camera.zoom);
+      }
+    });
+  }
+
+  void _centerOnUser() {
+    if (_myLocation != null && _mapReady) {
+      _mapCtrl.move(_myLocation!, 16);
+    } else {
+      _initGpsTracking();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,15 +97,24 @@ class _MapPageState extends ConsumerState<MapPage> {
         child: const Icon(Icons.my_location, color: Color(0xFF001B44)),
       ),
       body: Stack(children: [
-        LiveMapWidget(
-          initialCenter: _myLocation ?? const LatLng(-12.0464, -77.0428),
-          initialZoom: 14,
-          buses: buses,
-          activeRoute: routeWithBuses.valueOrNull?.route,
-          stops: _showStops ? allStops : stops,
-          extraPolylines: favoritePolylines,
-          extraMarkers: userMarker,
-          onStopTapped: _showStopInfo,
+        FlutterMap(
+          mapController: _mapCtrl,
+          options: MapOptions(
+            initialCenter: _myLocation ?? const LatLng(-12.0464, -77.0428),
+            initialZoom: 14,
+            onMapReady: () => setState(() => _mapReady = true),
+          ),
+          children: [
+            TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', userAgentPackageName: 'com.verve.bussu'),
+            PolylineLayer(polylines: [
+              ..._buildRoutePolylines(allRoutes),
+              ...favoritePolylines,
+            ]),
+            MarkerLayer(markers: [
+              ..._buildStopMarkers(_showStops ? allStops : stops),
+              ...userMarker,
+            ]),
+          ],
         ),
         Positioned(top: 56, left: 16, right: 72, child: _buildSearchBar()),
         Positioned(bottom: 0, left: 0, right: 0, child: _buildBottomSheet(allStops, allRoutes)),
@@ -69,39 +122,34 @@ class _MapPageState extends ConsumerState<MapPage> {
     );
   }
 
-  void _centerOnUser() async {
-    try {
-      final loc = await _requestLocation();
-      if (loc != null && mounted) {
-        setState(() => _myLocation = LatLng(loc.latitude, loc.longitude));
-      }
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo obtener la ubicación. Verifica los permisos de GPS.'), backgroundColor: Color(0xFFBA1A1A)));
-    }
+  List<Polyline> _buildRoutePolylines(List<RouteEntity> routes) {
+    return routes.map((r) {
+      final points = _polylineService.fromDoubleList(r.polyline);
+      return Polyline(points: points, color: const Color(0xFF001B44).withAlpha(120), strokeWidth: 4);
+    }).toList();
   }
 
-  Future<LocationData?> _requestLocation() async {
-    final service = ref.read(locationServiceProvider);
-    final permission = await service.hasPermission();
-    if (!permission) {
-      final granted = await service.requestPermission();
-      if (!granted) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permiso de ubicación denegado'), backgroundColor: Color(0xFFBA1A1A)));
-        return null;
-      }
-    }
-    final result = await service.getCurrentLocation();
-    return result.fold((failure) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failure.message.toString()), backgroundColor: const Color(0xFFBA1A1A)));
-      return null;
-    }, (loc) => loc);
+  List<Marker> _buildStopMarkers(List<StopEntity> stops) {
+    return stops.map((stop) => Marker(
+      point: LatLng(stop.latitude, stop.longitude),
+      width: 36,
+      height: 36,
+      child: GestureDetector(
+        onTap: () => _showStopInfo(stop),
+        child: Container(
+          width: 36, height: 36,
+          decoration: BoxDecoration(color: const Color(0xFF1565C0), shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)]),
+          child: Center(child: Text('${stop.orderIndex}', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700))),
+        ),
+      ),
+    )).toList();
   }
 
   void _showStopInfo(StopEntity stop) {
     showModalBottomSheet(context: context, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))), builder: (_) => Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
       Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
       const SizedBox(height: 16),
-      Row(children: [Container(width: 40, height: 40, decoration: BoxDecoration(color: Colors.blue.shade700, borderRadius: BorderRadius.circular(10)), child: Center(child: Text('${stop.orderIndex}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)))), const SizedBox(width: 12), Expanded(child: Text(stop.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF001B44), fontFamily: 'Inter')))]),
+      Row(children: [Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFF1565C0), borderRadius: BorderRadius.circular(10)), child: Center(child: Text('${stop.orderIndex}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)))), const SizedBox(width: 12), Expanded(child: Text(stop.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF001B44), fontFamily: 'Inter')))]),
       const SizedBox(height: 16),
       _infoRow(Icons.location_on, '${stop.latitude.toStringAsFixed(5)}, ${stop.longitude.toStringAsFixed(5)}'),
       const SizedBox(height: 8),
@@ -113,7 +161,10 @@ class _MapPageState extends ConsumerState<MapPage> {
   Widget _infoRow(IconData icon, String text) => Row(children: [Icon(icon, size: 18, color: const Color(0xFF434750)), const SizedBox(width: 8), Text(text, style: const TextStyle(fontSize: 14, color: Color(0xFF434750), fontFamily: 'Inter'))]);
 
   Widget _buildSearchBar() {
-    return Container(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: Color(0x14002F6C), blurRadius: 12, offset: Offset(0, 4))]), child: TextField(decoration: InputDecoration(hintText: 'Buscar destino o ruta...', hintStyle: const TextStyle(color: Color(0xFF434750), fontSize: 14), prefixIcon: const Icon(Icons.search, color: Color(0xFF001B44)), border: OutlineInputBorder(borderRadius: BorderRadius.circular(28), borderSide: BorderSide.none), filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12))));
+    return Container(decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: Color(0x14002F6C), blurRadius: 12, offset: Offset(0, 4))]), child: TextField(
+      controller: _searchCtrl,
+      onChanged: (v) => setState(() => _searchQuery = v),
+      decoration: InputDecoration(hintText: 'Buscar destino o ruta...', hintStyle: const TextStyle(color: Color(0xFF434750), fontSize: 14), prefixIcon: const Icon(Icons.search, color: Color(0xFF001B44)), suffixIcon: _searchQuery.isNotEmpty ? IconButton(icon: const Icon(Icons.clear, size: 18), onPressed: () { _searchCtrl.clear(); setState(() => _searchQuery = ''); }) : null, border: OutlineInputBorder(borderRadius: BorderRadius.circular(28), borderSide: BorderSide.none), filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12))));
   }
 
   Widget _buildBottomSheet(List<StopEntity> allStops, List<RouteEntity> allRoutes) {

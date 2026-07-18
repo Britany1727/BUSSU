@@ -6,7 +6,7 @@ import '../repositories/chat_repository.dart';
 class WatchConversationUseCase {
   final ChatRepository _repo;
   WatchConversationUseCase(this._repo);
-  Stream<Either<Failure, ChatMessage>> execute(String roomId) {
+  Stream<Either<Failure, List<ChatMessage>>> execute(String roomId) {
     return _repo.watchMessages(roomId);
   }
 }

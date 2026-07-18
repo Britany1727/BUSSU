@@ -58,22 +58,21 @@ class ObdTelemetryDataSourceImpl implements ObdTelemetryDataSource {
     required double speedKmh,
     required double heading,
   }) async {
-    await _client.from('bus_live_position').upsert({
-      'bus_id': busId,
-      'lat': lat,
-      'lng': lng,
-      'speed_kmh': speedKmh,
-      'heading': heading,
-      'updated_at': DateTime.now().toIso8601String(),
+    await _client.rpc('update_bus_position', params: {
+      'p_bus_id': busId,
+      'p_lat': lat,
+      'p_lng': lng,
+      'p_speed': speedKmh,
+      'p_heading': heading,
+      'p_passenger_count': 0,
     });
 
-    await _client.from('bus_telemetry_history').insert({
-      'bus_id': busId,
-      'lat': lat,
-      'lng': lng,
-      'speed_kmh': speedKmh,
-      'passenger_count': 0,
-      'recorded_at': DateTime.now().toIso8601String(),
+    await _client.rpc('insert_telemetry_history', params: {
+      'p_bus_id': busId,
+      'p_lat': lat,
+      'p_lng': lng,
+      'p_speed': speedKmh,
+      'p_passenger_count': 0,
     });
   }
 

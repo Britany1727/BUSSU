@@ -130,6 +130,9 @@ class MockAuthRepository implements AuthRepository {
     if (lower.startsWith('driver@') || lower.startsWith('conductor@')) {
       return UserRole.conductor;
     }
+    if (lower.startsWith('premium@')) {
+      return UserRole.usuario;
+    }
     return UserRole.usuario;
   }
 
@@ -143,6 +146,9 @@ class MockAuthRepository implements AuthRepository {
       case UserRole.conductor:
         return 'Conductor ${prefix.replaceAll(RegExp('[^a-zA-Z]'), ' ')}';
       default:
+        if (email.toLowerCase().startsWith('premium@')) {
+          return 'Usuario Premium';
+        }
         return 'Usuario ${prefix.replaceAll(RegExp('[^a-zA-Z]'), ' ')}';
     }
   }

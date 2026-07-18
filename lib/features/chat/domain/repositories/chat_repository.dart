@@ -6,7 +6,7 @@ import '../entities/chat_message.dart';
 
 abstract class ChatRepository {
   Future<Either<Failure, List<ChatMessage>>> getMessages(String roomId);
-  Stream<Either<Failure, ChatMessage>> watchMessages(String roomId);
+  Stream<Either<Failure, List<ChatMessage>>> watchMessages(String roomId);
   Future<Either<Failure, void>> sendMessage({required String roomId, required String content});
   Future<Either<Failure, List<ChatConversation>>> listConversations();
   Stream<Either<Failure, List<ChatConversation>>> watchConversations();

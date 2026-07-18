@@ -201,7 +201,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 margin: const EdgeInsets.only(top: 8),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(color: const Color(0xFFFED000).withAlpha(25), borderRadius: BorderRadius.circular(10)),
-                child: const Text('Usa: driver@ · coop@ · admin@ + 12345678', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: Color(0xFF001B44), fontFamily: 'Inter', fontWeight: FontWeight.w500)),
+                child: const Text('Usa: driver@ · coop@ · admin@ · premium@\n+ 12345678', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: Color(0xFF001B44), fontFamily: 'Inter', fontWeight: FontWeight.w500)),
               ),
           ],
         ),

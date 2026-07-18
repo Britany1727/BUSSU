@@ -44,6 +44,7 @@ abstract class FleetRepository {
   // ---- Routes CRUD ----
   Future<Either<Failure, List<RouteEntity>>> getRoutes(String cooperativaId);
   Future<Either<Failure, void>> updateRoute(RouteEntity route);
+  Future<Either<Failure, void>> deleteRoute(String routeId);
 
   // ---- Reports ----
   Future<Either<Failure, List<RoutePerformance>>> getRoutePerformance(
@@ -62,4 +63,7 @@ abstract class FleetRepository {
     required String fullName,
     String? licenseNumber,
   });
+
+  // ---- Driver deletion ----
+  Future<Either<Failure, void>> deleteDriver(String driverId);
 }

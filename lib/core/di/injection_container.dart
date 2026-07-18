@@ -1,5 +1,6 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -20,6 +21,9 @@ import '../../features/cooperativa/domain/repositories/fleet_repository.dart';
 import '../../features/cooperativa/presentation/providers/fleet_provider.dart';
 import '../../features/admin_municipal/domain/repositories/network_monitor_repository.dart';
 import '../../features/admin_municipal/presentation/providers/system_alerts_provider.dart';
+import '../../features/chat/data/datasources/chat_remote_datasource.dart';
+import '../../features/chat/data/repositories/chat_repository_impl.dart';
+import '../../features/chat/domain/repositories/chat_repository.dart';
 import '../../features/usuario/data/datasources/bus_tracking_remote_datasource.dart';
 import '../../features/usuario/data/datasources/eta_remote_datasource.dart';
 import '../../features/usuario/data/repositories/bus_tracking_repository_impl.dart';
@@ -87,6 +91,7 @@ void _registerCoreServices() {
 
 void _registerSupabaseServices() {
   if (Env.enableMockAuth) return;
+  if (!sl.isRegistered<SupabaseClient>()) return;
 
   sl.registerLazySingleton<PushService>(
     () => PushServiceImpl(sl<SupabaseClient>()),
@@ -131,9 +136,15 @@ void _registerMockDependencies() {
   sl.registerLazySingleton<NetworkMonitorRepository>(
     MockNetworkMonitorRepository.new,
   );
+  sl.registerLazySingleton<ChatRepository>(() => ChatRepositoryImpl());
 }
 
 void _registerRealFeatureDependencies() {
+  if (!sl.isRegistered<SupabaseClient>()) {
+    debugPrint('WARNING: SupabaseClient no registrado, usando repos mock');
+    _registerMockDependencies();
+    return;
+  }
   final client = sl<SupabaseClient>();
 
   sl.registerLazySingleton<BusTrackingRemoteDataSource>(
@@ -179,6 +190,13 @@ void _registerRealFeatureDependencies() {
   );
   sl.registerLazySingleton<NetworkMonitorRepository>(
     () => NetworkMonitorRepositoryImpl(sl<NetworkMonitorRemoteDataSource>()),
+  );
+
+  sl.registerLazySingleton<ChatRemoteDataSource>(
+    () => ChatRemoteDataSource(sl<SupabaseClient>()),
+  );
+  sl.registerLazySingleton<ChatRepository>(
+    () => ChatRepositoryImpl(remote: sl<ChatRemoteDataSource>()),
   );
 }
 

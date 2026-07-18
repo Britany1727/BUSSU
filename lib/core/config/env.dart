@@ -3,12 +3,12 @@ class Env {
 
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'https://your-project.supabase.co',
+    defaultValue: 'https://jzymlturrbekpwomiifc.supabase.co',
   );
 
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: 'your-anon-key',
+    defaultValue: 'sb_publishable_JQ0biNHe3HpByYwPF--Lyw_IVMUxyKE',
   );
 
   static const String mqttBrokerHost = String.fromEnvironment(
@@ -49,6 +49,5 @@ class Env {
   /// Habilita autenticación mock sin Supabase para desarrollo/pruebas.
   /// En producción siempre es false.
   static bool get enableMockAuth =>
-      !isProduction &&
-      bool.fromEnvironment('ENABLE_MOCK_AUTH', defaultValue: true);
+      bool.fromEnvironment('ENABLE_MOCK_AUTH', defaultValue: false);
 }

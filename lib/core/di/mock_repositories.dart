@@ -208,6 +208,10 @@ class MockFleetRepository implements FleetRepository {
       const Right(null);
 
   @override
+  Future<Either<Failure, void>> deleteRoute(String routeId) async =>
+      const Right(null);
+
+  @override
   Future<Either<Failure, List<RoutePerformance>>> getRoutePerformance(
           String cooperativaId) async =>
       const Right([]);
@@ -217,6 +221,10 @@ class MockFleetRepository implements FleetRepository {
           String cooperativaId,
           {int limit = 50}) async =>
       const Right([]);
+
+  @override
+  Future<Either<Failure, void>> deleteDriver(String driverId) async =>
+      const Right(null);
 }
 
 // ─── Admin Municipal ────────────────────────────────────────────────

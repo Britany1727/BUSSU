@@ -26,6 +26,7 @@ class LiveMapWidget extends StatefulWidget {
   final Stream<Map<String, BusPosition>>? busPositionStream;
   final Duration? pollingInterval;
   final TileCacheService? tileCache;
+  final MapController? externalMapController;
 
   const LiveMapWidget({
     super.key,
@@ -42,6 +43,7 @@ class LiveMapWidget extends StatefulWidget {
     this.busPositionStream,
     this.pollingInterval,
     this.tileCache,
+    this.externalMapController,
   });
 
   @override
@@ -57,7 +59,7 @@ class BusPosition {
 }
 
 class _LiveMapWidgetState extends State<LiveMapWidget> with TickerProviderStateMixin {
-  final MapController _mapController = MapController();
+  late final MapController _mapController = widget.externalMapController ?? MapController();
   final BusMarkerAnimator _animator = BusMarkerAnimator(const MarkerService());
   final PolylineService _polylineService = const PolylineService();
   final PolylineCache _polylineCache = PolylineCache();

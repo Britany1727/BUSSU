@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../../../core/maps/marker_service.dart';
 import '../../../../core/maps/tile_provider.dart';
+import '../../../../shared/presentation/providers/location_provider.dart';
 import '../providers/trip_provider.dart';
 
 class StopRequestPage extends ConsumerStatefulWidget {
@@ -38,7 +39,8 @@ class _StopRequestPageState extends ConsumerState<StopRequestPage> {
     }
     setState(() => _sending = true);
     final uc = ref.read(requestNewStopUseCaseProvider);
-    final result = await uc.execute(driverId: 'current-driver', lat: _position!.latitude, lng: _position!.longitude, reason: '${_nameCtrl.text}\n${_descCtrl.text}\nBanca: ${_hasBench ? "si" : "no"}');
+    final driverId = ref.read(driverIdProvider);
+    final result = await uc.execute(driverId: driverId, lat: _position!.latitude, lng: _position!.longitude, reason: '${_nameCtrl.text}\n${_descCtrl.text}\nBanca: ${_hasBench ? "si" : "no"}');
     if (!mounted) return;
     setState(() => _sending = false);
     result.fold(
@@ -70,7 +72,7 @@ class _StopRequestPageState extends ConsumerState<StopRequestPage> {
           )),
         ),
         const SizedBox(height: 12),
-        Row(children: [Expanded(child: ElevatedButton.icon(onPressed: () => setState(() => _position = const LatLng(-12.0464, -77.0428)), icon: const Icon(Icons.my_location, size: 18), label: const Text('Mi ubicación'), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF001B44), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))))]),
+        Row(children: [Expanded(child: ElevatedButton.icon(onPressed: () async { final service = ref.read(locationServiceProvider); final loc = await service.getCurrentLocation(); loc.fold((f) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(f.message.toString()), backgroundColor: const Color(0xFFBA1A1A))); }, (location) { final pos = LatLng(location.latitude, location.longitude); setState(() => _position = pos); _mapCtrl.move(pos, 15); }); }, icon: const Icon(Icons.my_location, size: 18), label: const Text('Mi ubicación'), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF001B44), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))))]),
         const SizedBox(height: 20),
         TextFormField(controller: _nameCtrl, decoration: InputDecoration(labelText: 'Nombre de la parada', hintText: 'Ej: Av. La Marina cdra 5', labelStyle: const TextStyle(color: Color(0xFF001B44), fontFamily: 'Inter'), hintStyle: TextStyle(color: Colors.grey[400], fontFamily: 'Inter'), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF001B44))))),
         const SizedBox(height: 14),
